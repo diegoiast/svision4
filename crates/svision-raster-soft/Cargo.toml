@@ -1,0 +1,10 @@
+[package]
+name = "svision-raster-soft"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+svision-core.workspace = true
+tiny-skia.workspace = true
+fontdue.workspace = true

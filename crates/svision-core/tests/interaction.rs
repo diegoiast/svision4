@@ -1,0 +1,706 @@
+use std::{cell::Cell, rc::Rc};
+
+use svision_core::prelude::*;
+
+fn build_counter(ui: &Ui) -> (TypedWidgetHandle<Label>, Rc<Cell<i32>>) {
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let label = ui
+        .add_child(&root, Label::new("0"))
+        .cast::<Label>()
+        .expect("label");
+    let count = Rc::new(Cell::new(0));
+
+    let callback_count = count.clone();
+    let callback_label = label.clone();
+    ui.add_child(
+        &root,
+        Button::new("Increment").on_click(move |_ctx| {
+            let value = callback_count.get() + 1;
+            callback_count.set(value);
+            callback_label.edit(|label: &mut Label| {
+                label.set_text(value.to_string());
+            });
+        }),
+    );
+
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+    (label, count)
+}
+
+fn click(ui: &Ui, position: Point) {
+    ui.dispatch(Event::MouseDown {
+        position,
+        button: MouseButton::Left,
+    });
+    ui.dispatch(Event::MouseUp {
+        position,
+        button: MouseButton::Left,
+    });
+}
+
+#[test]
+fn button_click_runs_callback_and_mutates_handle() {
+    let ui = Ui::new();
+    let (label, count) = build_counter(&ui);
+    let root = ui.root().expect("root");
+    let button = root.children()[1].bounds();
+
+    click(&ui, button.center());
+
+    assert_eq!(count.get(), 1);
+    assert_eq!(label.with(|label| label.text().to_string()), "1");
+}
+
+#[test]
+fn click_outside_does_not_fire_and_button_receives_focus() {
+    let ui = Ui::new();
+    let (label, count) = build_counter(&ui);
+
+    click(&ui, Point::new(5.0, 5.0));
+    assert_eq!(count.get(), 0);
+
+    let root = ui.root().expect("root");
+    let button = root.children()[1].bounds();
+    click(&ui, button.center());
+    assert_eq!(count.get(), 1);
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Enter,
+        modifiers: Modifiers::default(),
+    });
+    assert_eq!(count.get(), 2);
+    assert_eq!(label.with(|label| label.text().to_string()), "2");
+}
+
+#[test]
+fn mouse_up_outside_button_does_not_fire() {
+    let ui = Ui::new();
+    let (_label, count) = build_counter(&ui);
+    let root = ui.root().expect("root");
+    let button = root.children()[1].bounds();
+
+    ui.dispatch(Event::MouseDown {
+        position: button.center(),
+        button: MouseButton::Left,
+    });
+    ui.dispatch(Event::MouseUp {
+        position: Point::new(5.0, 5.0),
+        button: MouseButton::Left,
+    });
+
+    assert_eq!(count.get(), 0);
+}
+
+#[test]
+fn disabled_button_does_not_fire() {
+    let ui = Ui::new();
+    let (_label, count) = build_counter(&ui);
+    let root = ui.root().expect("root");
+    let button = root.children()[1].clone();
+    let bounds = button.bounds();
+    button.set_enabled(false);
+
+    click(&ui, bounds.center());
+
+    assert_eq!(count.get(), 0);
+}
+
+#[test]
+fn dragging_outside_and_back_fires_once_on_release() {
+    let ui = Ui::new();
+    let (_label, count) = build_counter(&ui);
+    let root = ui.root().expect("root");
+    let button = root.children()[1].bounds();
+
+    ui.dispatch(Event::MouseDown {
+        position: button.center(),
+        button: MouseButton::Left,
+    });
+    ui.dispatch(Event::CursorMoved {
+        position: Point::new(5.0, 5.0),
+    });
+    ui.dispatch(Event::CursorMoved {
+        position: button.center(),
+    });
+    assert_eq!(count.get(), 0);
+    ui.dispatch(Event::MouseUp {
+        position: button.center(),
+        button: MouseButton::Left,
+    });
+
+    assert_eq!(count.get(), 1);
+}
+
+#[test]
+fn release_outside_cancels_and_next_click_still_works() {
+    let ui = Ui::new();
+    let (_label, count) = build_counter(&ui);
+    let root = ui.root().expect("root");
+    let button = root.children()[1].bounds();
+
+    ui.dispatch(Event::MouseDown {
+        position: button.center(),
+        button: MouseButton::Left,
+    });
+    ui.dispatch(Event::CursorMoved {
+        position: Point::new(5.0, 5.0),
+    });
+    ui.dispatch(Event::MouseUp {
+        position: Point::new(5.0, 5.0),
+        button: MouseButton::Left,
+    });
+    assert_eq!(count.get(), 0);
+
+    click(&ui, button.center());
+    assert_eq!(count.get(), 1);
+}
+
+#[test]
+fn toggle_button_fires_and_toggles_state() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let toggle = ui.add_child(&root, Button::new("Toggle").toggle(true));
+    let handle = toggle.cast::<Button>().expect("button");
+
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+    let bounds = handle.bounds();
+    click(&ui, bounds.center());
+    assert!(handle.with(|button: &Button| button.is_checked()));
+
+    click(&ui, bounds.center());
+    assert!(!handle.with(|button: &Button| button.is_checked()));
+}
+
+#[test]
+fn layout_supports_four_different_padding_and_margin_values() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 240.0));
+    let root = ui.set_root(
+        VBoxLayout::new()
+            .insets(Insets::new(1.0, 2.0, 3.0, 4.0))
+            .margins(Insets::new(4.0, 3.0, 2.0, 1.0)),
+    );
+    ui.add_child(&root, Label::new("content"));
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    let bounds = root.bounds();
+    assert!(bounds.width > 0.0);
+    assert!(bounds.height > 0.0);
+    assert!(ui.min_size().width > 0.0);
+}
+
+#[test]
+fn listview_selects_and_scrolls() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(200.0, 80.0));
+    let root = ui.set_root(Column::new().padding(0.0).spacing(0.0));
+    let list = ui
+        .add_child(
+            &root,
+            ListView::new((0..10).map(|i| format!("Item {i}"))).selected(0),
+        )
+        .cast::<ListView>()
+        .expect("list");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    assert_eq!(list.with(|l: &ListView| l.selected_index()), Some(0));
+    let bounds = list.bounds();
+    click(&ui, Point::new(bounds.x + 4.0, bounds.y + 40.0));
+    assert_eq!(list.with(|l: &ListView| l.selected_index()), Some(1));
+
+    ui.set_focus(Some(list.id()));
+    ui.dispatch(Event::KeyDown {
+        key: Key::Down,
+        modifiers: Modifiers::default(),
+    });
+    assert_eq!(list.with(|l: &ListView| l.selected_index()), Some(2));
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::End,
+        modifiers: Modifiers::default(),
+    });
+    assert_eq!(list.with(|l: &ListView| l.selected_index()), Some(9));
+    assert!(list.with(|l: &ListView| l.scroll_offset()) > 0.0);
+}
+
+#[test]
+fn scrollbar_horizontal_value_changes() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(200.0, 40.0));
+    let root = ui.set_root(Column::new().padding(0.0).spacing(0.0));
+    let bar = ui
+        .add_child(&root, ScrollBar::horizontal().range(0.0, 100.0).value(0.0))
+        .cast::<ScrollBar>()
+        .expect("scrollbar");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    ui.set_focus(Some(bar.id()));
+    ui.dispatch(Event::KeyDown {
+        key: Key::Right,
+        modifiers: Modifiers::default(),
+    });
+    assert_eq!(bar.with(|s: &ScrollBar| s.value_ref()), 1.0);
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::End,
+        modifiers: Modifiers::default(),
+    });
+    assert_eq!(bar.with(|s: &ScrollBar| s.value_ref()), 100.0);
+}
+
+#[test]
+fn scrollbar_vertical_track_click_pages() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(40.0, 200.0));
+    let root = ui.set_root(Column::new().padding(0.0).spacing(0.0));
+    let bar = ui
+        .add_child(
+            &root,
+            ScrollBar::vertical()
+                .range(0.0, 100.0)
+                .value(0.0)
+                .step_page(10.0),
+        )
+        .cast::<ScrollBar>()
+        .expect("scrollbar");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    let bounds = bar.bounds();
+    let thumb = bar.with(|s: &ScrollBar| s.value_ref());
+    let _ = thumb;
+    click(
+        &ui,
+        Point::new(bounds.x + bounds.width * 0.5, bounds.bottom() - 8.0),
+    );
+    assert!(bar.with(|s: &ScrollBar| s.value_ref()) > 0.0);
+}
+
+#[test]
+fn combobox_opens_selects_and_closes() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 240.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let combo = ui
+        .add_child(&root, ComboBox::new(["A", "B", "C"]).selected(0))
+        .cast::<ComboBox>()
+        .expect("combo");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    assert_eq!(combo.with(|c: &ComboBox| c.selected_index()), Some(0));
+    assert!(!combo.with(|c: &ComboBox| c.is_open()));
+
+    let bounds = combo.bounds();
+    click(&ui, bounds.center());
+    assert!(combo.with(|c: &ComboBox| c.is_open()));
+
+    let item = Rect::new(bounds.x + 1.0, bounds.y + 36.0, bounds.width - 2.0, 32.0);
+    click(&ui, item.center());
+    assert_eq!(combo.with(|c: &ComboBox| c.selected_index()), Some(0));
+    assert!(!combo.with(|c: &ComboBox| c.is_open()));
+}
+
+#[test]
+fn combobox_closes_on_click_outside() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 240.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let combo = ui
+        .add_child(&root, ComboBox::new(["A", "B"]).selected(0))
+        .cast::<ComboBox>()
+        .expect("combo");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    let bounds = combo.bounds();
+    click(&ui, bounds.center());
+    assert!(combo.with(|c: &ComboBox| c.is_open()));
+
+    click(&ui, Point::new(300.0, 200.0));
+    assert!(!combo.with(|c: &ComboBox| c.is_open()));
+}
+
+#[test]
+fn combobox_keyboard_navigation() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 240.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let combo = ui
+        .add_child(&root, ComboBox::new(["A", "B", "C"]).selected(0))
+        .cast::<ComboBox>()
+        .expect("combo");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    ui.set_focus(Some(combo.id()));
+    ui.dispatch(Event::KeyDown {
+        key: Key::Down,
+        modifiers: Modifiers::default(),
+    });
+    assert_eq!(combo.with(|c: &ComboBox| c.selected_index()), Some(1));
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Enter,
+        modifiers: Modifiers::default(),
+    });
+    assert!(combo.with(|c: &ComboBox| c.is_open()));
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Down,
+        modifiers: Modifiers::default(),
+    });
+    ui.dispatch(Event::KeyDown {
+        key: Key::Enter,
+        modifiers: Modifiers::default(),
+    });
+    assert_eq!(combo.with(|c: &ComboBox| c.selected_index()), Some(2));
+    assert!(!combo.with(|c: &ComboBox| c.is_open()));
+}
+
+fn build_two_buttons(ui: &Ui) -> (TypedWidgetHandle<Button>, TypedWidgetHandle<Button>) {
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let first = ui
+        .add_child(&root, Button::new("First"))
+        .cast::<Button>()
+        .expect("first button");
+    let second = ui
+        .add_child(&root, Button::new("Second"))
+        .cast::<Button>()
+        .expect("second button");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+    (first, second)
+}
+
+#[test]
+fn tab_moves_focus_to_the_first_button() {
+    let ui = Ui::new();
+    let (first, _second) = build_two_buttons(&ui);
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Tab,
+        modifiers: Modifiers::default(),
+    });
+
+    assert!(first.is_focused());
+    assert_eq!(ui.focus().map(|handle| handle.id()), Some(first.id()));
+}
+
+#[test]
+fn tab_moves_focus_forward_between_buttons() {
+    let ui = Ui::new();
+    let (first, second) = build_two_buttons(&ui);
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Tab,
+        modifiers: Modifiers::default(),
+    });
+    ui.dispatch(Event::KeyDown {
+        key: Key::Tab,
+        modifiers: Modifiers::default(),
+    });
+
+    assert!(!first.is_focused());
+    assert!(second.is_focused());
+}
+
+#[test]
+fn shift_tab_moves_focus_backward_between_buttons() {
+    let ui = Ui::new();
+    let (first, second) = build_two_buttons(&ui);
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Tab,
+        modifiers: Modifiers::default(),
+    });
+    ui.dispatch(Event::KeyDown {
+        key: Key::Tab,
+        modifiers: Modifiers::default(),
+    });
+    ui.dispatch(Event::KeyDown {
+        key: Key::Tab,
+        modifiers: Modifiers {
+            shift: true,
+            ..Modifiers::default()
+        },
+    });
+
+    assert!(first.is_focused());
+    assert!(!second.is_focused());
+}
+
+#[test]
+fn shift_tab_from_no_focus_selects_the_last_button() {
+    let ui = Ui::new();
+    let (_first, second) = build_two_buttons(&ui);
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Tab,
+        modifiers: Modifiers {
+            shift: true,
+            ..Modifiers::default()
+        },
+    });
+
+    assert!(second.is_focused());
+}
+
+#[test]
+fn tab_skips_disabled_buttons() {
+    let ui = Ui::new();
+    let (first, second) = build_two_buttons(&ui);
+    first.set_enabled(false);
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Tab,
+        modifiers: Modifiers::default(),
+    });
+
+    assert!(!first.is_focused());
+    assert!(second.is_focused());
+}
+
+#[test]
+fn focused_button_fires_on_enter() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let count = Rc::new(Cell::new(0));
+    let callback_count = count.clone();
+    let button = ui
+        .add_child(
+            &root,
+            Button::new("Press").on_click(move |_ctx| {
+                callback_count.set(callback_count.get() + 1);
+            }),
+        )
+        .cast::<Button>()
+        .expect("button");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    ui.set_focus(Some(button.id()));
+    assert!(button.is_focused());
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Enter,
+        modifiers: Modifiers::default(),
+    });
+
+    assert_eq!(count.get(), 1);
+}
+
+#[test]
+fn theme_focus_color_is_exposed() {
+    assert_ne!(Theme::light().focus(), Theme::light().surface());
+    assert_ne!(Theme::dark().focus(), Theme::dark().surface());
+}
+
+#[test]
+fn combobox_keyboard_change_fires_callback() {
+    use std::cell::Cell;
+    use std::rc::Rc;
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let called = Rc::new(Cell::new(false));
+    let callback_called = called.clone();
+    let combo = ui
+        .add_child(
+            &root,
+            ComboBox::new(["A", "B"])
+                .selected(0)
+                .on_change(move |index, _ctx| {
+                    callback_called.set(true);
+                    assert_eq!(index, 1);
+                }),
+        )
+        .cast::<ComboBox>()
+        .expect("combo");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    ui.set_focus(Some(combo.id()));
+    ui.dispatch(Event::KeyDown {
+        key: Key::Enter,
+        modifiers: Modifiers::default(),
+    });
+    ui.dispatch(Event::KeyDown {
+        key: Key::Down,
+        modifiers: Modifiers::default(),
+    });
+    ui.dispatch(Event::KeyDown {
+        key: Key::Enter,
+        modifiers: Modifiers::default(),
+    });
+
+    assert!(called.get());
+}
+
+#[test]
+fn listview_click_center_selects_item() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(200.0, 80.0));
+    let root = ui.set_root(Column::new().padding(0.0).spacing(0.0));
+    let list = ui
+        .add_child(
+            &root,
+            ListView::new((0..10).map(|i| format!("Item {i}"))).selected(0),
+        )
+        .cast::<ListView>()
+        .expect("list");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    let bounds = list.bounds();
+    click(
+        &ui,
+        Point::new(bounds.x + bounds.width * 0.5, bounds.y + 40.0),
+    );
+    assert_eq!(list.with(|l: &ListView| l.selected_index()), Some(1));
+}
+
+#[test]
+fn listview_click_item_does_not_scroll() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(200.0, 80.0));
+    let root = ui.set_root(Column::new().padding(0.0).spacing(0.0));
+    let list = ui
+        .add_child(
+            &root,
+            ListView::new((0..10).map(|i| format!("Item {i}"))).selected(0),
+        )
+        .cast::<ListView>()
+        .expect("list");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    let before = list.with(|l: &ListView| l.scroll_offset());
+    let bounds = list.bounds();
+    click(&ui, Point::new(bounds.x + 4.0, bounds.y + 40.0));
+    let after = list.with(|l: &ListView| l.scroll_offset());
+    assert_eq!(before, after);
+    assert_eq!(list.with(|l: &ListView| l.selected_index()), Some(1));
+}
+
+#[test]
+fn listview_click_second_item_after_scroll_selects() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(200.0, 80.0));
+    let root = ui.set_root(Column::new().padding(0.0).spacing(0.0));
+    let list = ui
+        .add_child(
+            &root,
+            ListView::new((0..10).map(|i| format!("Item {i}"))).selected(0),
+        )
+        .cast::<ListView>()
+        .expect("list");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+    list.edit(|l: &mut ListView| l.set_scroll_offset(32.0));
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    let bounds = list.bounds();
+    click(&ui, Point::new(bounds.x + 4.0, bounds.y + 40.0));
+    assert_eq!(list.with(|l: &ListView| l.selected_index()), Some(2));
+}
+
+#[test]
+fn listview_click_scrollbar_track_does_not_scroll_if_item_row() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(200.0, 80.0));
+    let root = ui.set_root(Column::new().padding(0.0).spacing(0.0));
+    let list = ui
+        .add_child(
+            &root,
+            ListView::new((0..10).map(|i| format!("Item {i}"))).selected(0),
+        )
+        .cast::<ListView>()
+        .expect("list");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    let before = list.with(|l: &ListView| l.scroll_offset());
+    let bounds = list.bounds();
+    click(
+        &ui,
+        Point::new(bounds.x + bounds.width - 8.0, bounds.y + 40.0),
+    );
+    let after = list.with(|l: &ListView| l.scroll_offset());
+    assert_eq!(before, after);
+}
+
+#[test]
+fn listview_resize_then_click_does_not_scroll_up() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(200.0, 80.0));
+    let root = ui.set_root(Column::new().padding(0.0).spacing(0.0));
+    let list = ui
+        .add_child(
+            &root,
+            ListView::new((0..10).map(|i| format!("Item {i}"))).selected(0),
+        )
+        .cast::<ListView>()
+        .expect("list");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+    list.edit(|l: &mut ListView| l.set_scroll_offset(240.0));
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    let bounds = list.bounds();
+    let before = list.with(|l: &ListView| l.scroll_offset());
+    click(&ui, Point::new(bounds.x + 4.0, bounds.y + 40.0));
+    let after = list.with(|l: &ListView| l.scroll_offset());
+    assert_eq!(before, after);
+}
+
+#[test]
+fn listview_scrollbar_button_auto_repeats() {
+    use std::time::{Duration, Instant};
+    let ui = Ui::new();
+    ui.set_size(Size::new(200.0, 80.0));
+    let root = ui.set_root(Column::new().padding(0.0).spacing(0.0));
+    let list = ui
+        .add_child(
+            &root,
+            ListView::new((0..20).map(|i| format!("Item {i}"))).selected(0),
+        )
+        .cast::<ListView>()
+        .expect("list");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    let bounds = list.bounds();
+    let scrollbar = list.with(|l: &ListView| l.scroll_offset());
+    let _ = scrollbar;
+    let sb_bounds = {
+        // approximate right 16px
+        Rect::new(bounds.right() - 16.0, bounds.y, 16.0, bounds.height)
+    };
+    let end_center = Point::new(sb_bounds.x + 8.0, sb_bounds.y + sb_bounds.height - 8.0);
+    ui.dispatch(Event::MouseDown {
+        position: end_center,
+        button: MouseButton::Left,
+    });
+    let after_press = list.with(|l: &ListView| l.scroll_offset());
+    // process auto repeat after delay
+    let deadline = ui.process_auto_repeat(Instant::now() + Duration::from_millis(600));
+    assert!(deadline.is_some());
+    let after_repeat = list.with(|l: &ListView| l.scroll_offset());
+    assert!(after_repeat != after_press);
+}

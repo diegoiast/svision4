@@ -1,0 +1,18 @@
+[package]
+name = "svision-backend-gdiplus"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+svision-core.workspace = true
+svision-raster-soft.workspace = true
+svision-winit.workspace = true
+winit.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_GdiPlus",
+] }
