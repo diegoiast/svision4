@@ -360,6 +360,7 @@ impl Widget for ListView {
             let scrollbar_bounds = self.scrollbar_bounds(bounds);
             let mut scrollbar_ctx = PaintCtx {
                 rasterizer: &mut *ctx.rasterizer,
+                ui: ctx.ui,
                 theme: ctx.theme,
                 bounds: scrollbar_bounds,
                 state: ctx.state,

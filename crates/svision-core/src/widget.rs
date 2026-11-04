@@ -145,6 +145,7 @@ impl ArrangeCtx {
 /// Context passed to [`Widget::paint`].
 pub struct PaintCtx<'a> {
     pub rasterizer: &'a mut dyn TextRasterizer,
+    pub ui: &'a Ui,
     pub theme: &'a Theme,
     pub bounds: Rect,
     pub state: WidgetState,

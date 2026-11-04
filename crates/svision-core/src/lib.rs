@@ -50,7 +50,7 @@ pub use widget::{
     ArrangeCtx, EventCtx, MeasureCtx, PaintCtx, SizePolicy, SizePolicy2D, Widget, WidgetState,
 };
 pub use widgets::{
-    Align, Button, Checkbox, Column, ComboBox, CrossAlign, HBoxLayout, Label, ListView,
+    Align, Button, Checkbox, Column, ComboBox, CrossAlign, HBoxLayout, Input, Label, ListView,
     Orientation, RadioButton, RadioButtonGroup, Row, ScrollBar, Spacer, TextAlign, VBoxLayout,
     checkbox, radiobutton,
 };

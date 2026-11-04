@@ -589,6 +589,7 @@ impl Ui {
             if let Some(widget) = inner.widgets.get(&id) {
                 let mut ctx = PaintCtx {
                     rasterizer: &mut *rasterizer,
+                    ui: self,
                     theme: &inner.theme,
                     bounds: node.rect,
                     state: WidgetState {
