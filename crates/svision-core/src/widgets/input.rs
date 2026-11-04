@@ -273,6 +273,11 @@ impl Widget for Input {
                         self.cursor += c.len_utf8();
                         true
                     }
+                    Key::Space => {
+                        self.text.insert(self.cursor, ' ');
+                        self.cursor += 1;
+                        true
+                    }
                     _ => false,
                 };
                 if handled {

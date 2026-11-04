@@ -158,6 +158,10 @@ impl Widget for Checkbox {
         }
     }
 
+    fn focusable(&self) -> bool {
+        true
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

@@ -704,3 +704,74 @@ fn listview_scrollbar_button_auto_repeats() {
     let after_repeat = list.with(|l: &ListView| l.scroll_offset());
     assert!(after_repeat != after_press);
 }
+
+#[test]
+fn checkbox_is_focusable_via_tab() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let checkbox = ui
+        .add_child(&root, Checkbox::new("Agree"))
+        .cast::<Checkbox>()
+        .expect("checkbox");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Tab,
+        modifiers: Modifiers::default(),
+    });
+
+    assert!(checkbox.is_focused());
+    assert_eq!(ui.focus().map(|handle| handle.id()), Some(checkbox.id()));
+}
+
+#[test]
+fn input_accepts_spaces() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let input_handle = ui.add_child(&root, Input::new());
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    ui.set_focus(Some(input_handle.id()));
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Space,
+        modifiers: Modifiers::default(),
+    });
+    ui.dispatch(Event::KeyDown {
+        key: Key::Space,
+        modifiers: Modifiers::default(),
+    });
+
+    assert_eq!(
+        input_handle.with_concrete(|input: &Input| input.text().to_string()),
+        Some("  ".to_string())
+    );
+}
+
+#[test]
+fn ctrl_left_moves_to_word_start() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let input_handle = ui.add_child(&root, Input::with_text("hello world foo"));
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    ui.set_focus(Some(input_handle.id()));
+    // Cursor starts at end. Ctrl+Left jumps to start of "foo".
+    ui.dispatch(Event::KeyDown {
+        key: Key::Left,
+        modifiers: Modifiers {
+            ctrl: true,
+            ..Modifiers::default()
+        },
+    });
+    assert_eq!(
+        input_handle.with_concrete(|input: &Input| input.cursor()),
+        Some(12)
+    );
+}
