@@ -1,6 +1,6 @@
 use crate::{
-    Color, Event, FontSpec, FrameKind, Insets, Key, MouseButton, Point, Rect, Size, SizePolicy,
-    SizePolicy2D, impl_widget_any,
+    Event, FontSpec, FrameKind, Key, MouseButton, Point, Size, SizePolicy, SizePolicy2D,
+    impl_widget_any,
     widget::{EventCtx, MeasureCtx, PaintCtx, Widget},
 };
 
@@ -234,6 +234,11 @@ impl Widget for Input {
                     }
                     Key::End => {
                         self.cursor = self.text.len();
+                        true
+                    }
+                    Key::Character(c) => {
+                        self.text.insert(self.cursor, *c);
+                        self.cursor += c.len_utf8();
                         true
                     }
                     _ => false,

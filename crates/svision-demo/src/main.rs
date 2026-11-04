@@ -204,7 +204,7 @@ fn build(ui: &Ui) {
         .expect("combo box");
 
     ui.add_child(&root, Label::new("Search songs").muted().font_size(14.0));
-    let search_input = ui.add_child(&root, Input::with_text(""));
+    let _search_input = ui.add_child(&root, Input::with_text(""));
 
     let list_handle = ui
         .add_child(
