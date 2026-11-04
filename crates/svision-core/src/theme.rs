@@ -17,6 +17,7 @@ pub struct Palette {
 
     pub text: Color,
     pub text_muted: Color,
+    pub text_pressed: Color,
     pub accent: Color,
     pub accent_hover: Color,
     pub accent_pressed: Color,
@@ -177,6 +178,10 @@ impl Theme {
 
     pub fn text_muted(&self) -> Color {
         self.palette.text_muted
+    }
+
+    pub fn text_pressed(&self) -> Color {
+        self.palette.text_pressed
     }
 
     pub fn accent(&self) -> Color {

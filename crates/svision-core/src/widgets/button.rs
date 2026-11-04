@@ -273,6 +273,8 @@ impl Widget for Button {
 
         let text_color = if !enabled {
             theme.text_muted()
+        } else if ctx.state.is_pressed() {
+            theme.text_pressed()
         } else if checked || self.primary {
             theme.accent_text()
         } else {
