@@ -1,7 +1,7 @@
 use crate::{
-    impl_widget_any,
+    ButtonState, Event, FontSpec, FrameKind, Insets, Key, MouseButton, Point, Size, SizePolicy,
+    SizePolicy2D, impl_widget_any,
     widget::{EventCtx, MeasureCtx, PaintCtx, Widget},
-    ButtonState, Event, FontSpec, Insets, Key, MouseButton, Point, Size, SizePolicy, SizePolicy2D,
 };
 use std::time::{Duration, Instant};
 
@@ -251,10 +251,12 @@ impl Widget for Button {
         ctx.rasterizer
             .fill_round_rect(ctx.bounds, theme.radius(), background);
 
-        if !self.primary {
-            ctx.rasterizer
-                .stroke_round_rect(ctx.bounds, theme.radius(), theme.border(), 1.0);
-        }
+        let frame_kind = if self.primary {
+            FrameKind::Default
+        } else {
+            FrameKind::Normal
+        };
+        theme.frame(&mut *ctx.rasterizer, ctx.bounds, frame_kind);
 
         if ctx.state.focused && ctx.state.window_active {
             ctx.rasterizer.stroke_round_rect(

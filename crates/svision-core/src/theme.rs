@@ -1,4 +1,6 @@
-use crate::Color;
+use crate::{Color, Rect};
+
+use crate::painter::Painter;
 
 use crate::themes;
 
@@ -9,6 +11,7 @@ pub struct Palette {
     pub surface_hover: Color,
     pub surface_pressed: Color,
     pub border: Color,
+    pub frame: Color,
 
     pub text: Color,
     pub text_muted: Color,
@@ -24,6 +27,16 @@ pub struct Palette {
 ///
 /// Backends may use these or ignore them; widgets read the active theme through
 /// their paint/measure contexts.
+/// Style of a control frame drawn by [`Theme::frame`].
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum FrameKind {
+    #[default]
+    Normal,
+    /// Default button: Windows 95 draws a triple frame.
+    Default,
+}
+
 #[derive(Clone, Debug)]
 pub struct Theme {
     pub palette: Palette,
@@ -67,6 +80,31 @@ impl Theme {
 
     pub fn surface(&self) -> Color {
         self.palette.surface
+    }
+
+    /// Draws the frame (border) of a control.
+    ///
+    /// Windows themes draw a single line; Windows 95 draws a double frame,
+    /// and a triple frame for default buttons.
+    pub fn frame(&self, painter: &mut dyn Painter, rect: Rect, kind: FrameKind) {
+        if rect.width <= 0.0 || rect.height <= 0.0 {
+            return;
+        }
+        let width = 1.0;
+        if self.radius() == 0.0 {
+            // Windows 95: double frame, triple for default buttons.
+            let layers = match kind {
+                FrameKind::Normal => 2,
+                FrameKind::Default => 3,
+            };
+            for i in 0..layers {
+                let inset = i as f32 * width;
+                painter.stroke_rect(rect.inset_all(inset), self.palette.frame, width);
+            }
+        } else {
+            // Windows / modern: single lined frame.
+            painter.stroke_round_rect(rect, self.radius(), self.palette.frame, width);
+        }
     }
 
     /// Popup background: white on Windows 95 theme, surface color otherwise.

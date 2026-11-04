@@ -1,12 +1,12 @@
 use std::any::Any;
 
 use crate::{
+    FontSpec, Insets, Rect, Size,
     button_state::ButtonState,
     event::Event,
     text::TextRasterizer,
     theme::Theme,
     ui::{Ui, WidgetHandle, WidgetId},
-    FontSpec, Insets, Rect, Size,
 };
 
 /// Qt-inspired size policy for one dimension.

@@ -350,7 +350,14 @@ fn rounded_rect_path(rect: Rect, radius: f32) -> Option<Path> {
         y0 + radius,
     );
     builder.line_to(x1, y1 - radius);
-    builder.cubic_to(x1, y1 - radius + control, x1 - radius + control, y1, x1 - radius, y1);
+    builder.cubic_to(
+        x1,
+        y1 - radius + control,
+        x1 - radius + control,
+        y1,
+        x1 - radius,
+        y1,
+    );
     builder.line_to(x0 + radius, y1);
     builder.cubic_to(
         x0 + radius - control,

@@ -1,7 +1,7 @@
 use crate::{
+    Event, Key, MouseButton, Point, Rect, ScrollBar, Size, SizePolicy, SizePolicy2D,
     impl_widget_any,
     widget::{ArrangeCtx, EventCtx, MeasureCtx, PaintCtx, Widget},
-    Event, Key, MouseButton, Point, Rect, ScrollBar, Size, SizePolicy, SizePolicy2D,
 };
 use std::cell::RefCell;
 use std::time::Instant;
