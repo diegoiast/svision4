@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
 use fontdue::Font;
-use svision_core::{Color, FontSpec, Point, Painter, Rect, Size, TextEngine, TextRasterizer};
+use svision_core::{Color, FontSpec, Painter, Point, Rect, Size, TextEngine, TextRasterizer};
 use tiny_skia::{
     FillRule, LineCap, LineJoin, Mask, Paint, Path, PathBuilder, Pixmap, Stroke, Transform,
 };
 
-use crate::font::{load_default_font, FontdueTextEngine};
+use crate::font::{FontdueTextEngine, load_default_font};
 
 /// tiny-skia + fontdue CPU rasterizer.
 pub struct SoftRasterizer {
@@ -255,4 +255,120 @@ impl TextRasterizer for SoftRasterizer {
             .as_ref()
             .map(|metrics| metrics.ascent)
             .unwrap_or(px * 0.8);
-        let lin
+        let line_height = metrics
+            .as_ref()
+            .map(|metrics| metrics.new_line_size)
+            .unwrap_or(px * 1.25)
+            .max(px * 0.5);
+        let clip = self.clip_stack.last().copied();
+
+        let mut baseline = origin.y + ascent;
+        for line in text.lines() {
+            let mut pen_x = origin.x;
+            for character in line.chars() {
+                let (glyph, bitmap) = face.rasterize(character, px);
+                if glyph.width > 0 && glyph.height > 0 {
+                    let x = pen_x + glyph.xmin as f32;
+                    let y = baseline - glyph.ymin as f32 - glyph.height as f32;
+                    self.blend_glyph(
+                        (x.round() as i32, y.round() as i32),
+                        glyph.width,
+                        glyph.height,
+                        &bitmap,
+                        color,
+                        clip,
+                    );
+                }
+                pen_x += glyph.advance_width;
+            }
+            baseline += line_height;
+        }
+    }
+
+    fn text_engine(&self) -> Option<Rc<dyn TextEngine>> {
+        self.engine
+            .clone()
+            .map(|engine| engine as Rc<dyn TextEngine>)
+    }
+}
+
+fn solid_paint(color: Color) -> Paint<'static> {
+    let mut paint = Paint::default();
+    paint.set_color(skia_color(color));
+    paint.anti_alias = true;
+    paint
+}
+
+fn skia_color(color: Color) -> tiny_skia::Color {
+    tiny_skia::Color::from_rgba8(color.r, color.g, color.b, color.a)
+}
+
+fn skia_rect(rect: Rect) -> Option<tiny_skia::Rect> {
+    if rect.width <= 0.0 || rect.height <= 0.0 {
+        return None;
+    }
+    tiny_skia::Rect::from_xywh(rect.x, rect.y, rect.width, rect.height)
+}
+
+fn clip_mask(width: u32, height: u32, rect: Rect) -> Mask {
+    let mut mask = Mask::new(width, height).expect("clip mask allocation");
+    if rect.width <= 0.0 || rect.height <= 0.0 {
+        return mask;
+    }
+    if let Some(path) = rounded_rect_path(rect, 0.0) {
+        mask.fill_path(&path, FillRule::Winding, true, Transform::identity());
+    }
+    mask
+}
+
+fn rounded_rect_path(rect: Rect, radius: f32) -> Option<Path> {
+    if rect.width <= 0.0 || rect.height <= 0.0 {
+        return None;
+    }
+
+    let radius = radius.max(0.0).min(rect.width * 0.5).min(rect.height * 0.5);
+
+    if radius <= 0.0 {
+        return Some(PathBuilder::from_rect(skia_rect(rect)?));
+    }
+
+    let x0 = rect.x;
+    let y0 = rect.y;
+    let x1 = rect.right();
+    let y1 = rect.bottom();
+    let control = radius * 0.552_284_8;
+
+    let mut builder = PathBuilder::new();
+    builder.move_to(x0 + radius, y0);
+    builder.line_to(x1 - radius, y0);
+    builder.cubic_to(
+        x1 - radius + control,
+        y0,
+        x1,
+        y0 + radius - control,
+        x1,
+        y0 + radius,
+    );
+    builder.line_to(x1, y1 - radius);
+    builder.cubic_to(x1, y1 - radius + control, x1 - radius + control, y1, x1 - radius, y1);
+    builder.line_to(x0 + radius, y1);
+    builder.cubic_to(
+        x0 + radius - control,
+        y1,
+        x0,
+        y1 - radius + control,
+        x0,
+        y1 - radius,
+    );
+    builder.line_to(x0, y0 + radius);
+    builder.cubic_to(
+        x0,
+        y0 + radius - control,
+        x0 + radius - control,
+        y0,
+        x0 + radius,
+        y0,
+    );
+    builder.close();
+    builder.finish()
+}

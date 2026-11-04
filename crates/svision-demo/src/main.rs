@@ -3,7 +3,7 @@ use std::{cell::Cell, error::Error, rc::Rc};
 use svision_backend_softbuffer::SoftbufferBackend;
 use svision_core::prelude::*;
 use svision_raster_soft::SoftRasterizer;
-use svision_winit::{run, WindowConfig};
+use svision_winit::{WindowConfig, run};
 
 mod beatles;
 
@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     if std::env::args().any(|arg| arg == "--gdiplus") {
         return run::<svision_backend_gdiplus::GdiPlusBackend, _>(config, build);
     }
-//return run::<svision_backend_gdiplus::GdiPlusBackend, _>(config, build);
+    //return run::<svision_backend_gdiplus::GdiPlusBackend, _>(config, build);
     run::<SoftbufferBackend, _>(config, build)
 }
 
@@ -64,7 +64,8 @@ fn run_screenshot(path: &str) -> Result<(), Box<dyn Error>> {
             let data = pixmap.data();
             if data[index] != background.r
                 || data[index + 1] != background.g
-                || data[index + 2] != background.b {
+                || data[index + 2] != background.b
+            {
                 visible_buttons += 1;
             }
         }
@@ -82,29 +83,25 @@ fn build(ui: &Ui) {
     let root = ui.set_root(VBoxLayout::new());
 
     ui.add_child(&root, Label::new("svision4").font_size(30.0).bold());
-    ui.add_child(
-        &root,
-        Label::new("SVision4 ui toolkit").muted(),
-    );
+    ui.add_child(&root, Label::new("SVision4 ui toolkit").muted());
     ui.add_child(&root, Spacer::vertical(4.0));
 
-    let card = ui.add_child(
-        &root,
-        VBoxLayout::new()
-    );
+    let card = ui.add_child(&root, VBoxLayout::new());
 
     let counter = Rc::new(Cell::new(0));
-    let counter_label = ui.add_child(
-        &card,
-        Label::new("0")
-            .font_size(72.0)
-            .bold()
-            .align(TextAlign::Center),
-    )
-    .cast::<Label>()
-    .expect("counter label is a Label");
+    let counter_label = ui
+        .add_child(
+            &card,
+            Label::new("0")
+                .font_size(72.0)
+                .bold()
+                .align(TextAlign::Center),
+        )
+        .cast::<Label>()
+        .expect("counter label is a Label");
 
-    let status = ui.add_child(&card, Label::new("Waiting for input").muted())
+    let status = ui
+        .add_child(&card, Label::new("Waiting for input").muted())
         .cast::<Label>()
         .expect("status label is a Label");
 
@@ -172,17 +169,15 @@ fn build(ui: &Ui) {
     let reset_status = status.clone();
     ui.add_child(
         &buttons,
-        Button::new("Reset")
-            .min_width(70.0)
-            .on_click(move |_ctx| {
-                reset_count.set(0);
-                reset_label.edit(|label: &mut Label| {
-                    label.set_text("0");
-                });
-                reset_status.edit(|label: &mut Label| {
-                    label.set_text("Reset to 0");
-                });
-            }),
+        Button::new("Reset").min_width(70.0).on_click(move |_ctx| {
+            reset_count.set(0);
+            reset_label.edit(|label: &mut Label| {
+                label.set_text("0");
+            });
+            reset_status.edit(|label: &mut Label| {
+                label.set_text("Reset to 0");
+            });
+        }),
     );
 
     let theme_ui = ui.clone();
@@ -198,23 +193,25 @@ fn build(ui: &Ui) {
     );
 
     ui.add_child(&root, Label::new("Beatles album").muted().font_size(14.0));
-    let combo_handle = ui.add_child(
-        &root,
-        ComboBox::new(beatles::ALBUMS)
-            .selected(0)
-            .placeholder("Choose a Beatles album"),
-    )
-    .cast::<ComboBox>()
-    .expect("combo box");
+    let combo_handle = ui
+        .add_child(
+            &root,
+            ComboBox::new(beatles::ALBUMS)
+                .selected(0)
+                .placeholder("Choose a Beatles album"),
+        )
+        .cast::<ComboBox>()
+        .expect("combo box");
 
-    let list_handle = ui.add_child(
-        &root,
-        ListView::new(beatles::SONGS[0])
-            .min_width(260.0)
-            .alternating(true),
-    )
-    .cast::<ListView>()
-    .expect("list view");
+    let list_handle = ui
+        .add_child(
+            &root,
+            ListView::new(beatles::SONGS[0])
+                .min_width(260.0)
+                .alternating(true),
+        )
+        .cast::<ListView>()
+        .expect("list view");
 
     let list_for_combo = list_handle.clone();
     combo_handle.edit(|combo: &mut ComboBox| {
@@ -244,20 +241,18 @@ fn build(ui: &Ui) {
             let theme_ui = theme_ui_radio.clone();
             //let theme_card = theme_card_radio.clone();
             theme_ui.set_theme(next);
-/*            theme_card.edit(|card: &mut Column| {
-                card.set_background(surface);
-            });
-*/        }),
+            /*            theme_card.edit(|card: &mut Column| {
+                            card.set_background(surface);
+                        });
+            */
+        }),
     );
 
     ui.add_child(
         &group,
         RadioButton::new("Windows light").id("windows-light"),
     );
-    ui.add_child(
-        &group,
-        RadioButton::new("Windows dark").id("windows-dark"),
-    );
+    ui.add_child(&group, RadioButton::new("Windows dark").id("windows-dark"));
     ui.add_child(
         &group,
         RadioButton::new("Windows 95 light").id("windows95-light"),
@@ -266,9 +261,5 @@ fn build(ui: &Ui) {
         &group,
         RadioButton::new("Windows 95 dark").id("windows95-dark"),
     );
-    ui.add_child(
-        &group,
-        RadioButton::new("Material").id("material"),
-    );
+    ui.add_child(&group, RadioButton::new("Material").id("material"));
 }
-

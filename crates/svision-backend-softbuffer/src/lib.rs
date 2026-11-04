@@ -6,7 +6,7 @@
 use std::{error::Error, num::NonZeroU32, sync::Arc};
 
 use softbuffer::{Context, Surface};
-use svision_core::{GraphicsBackend, Rasterizer, Size};
+use svision_core::{GraphicsBackend, Size, TextRasterizer};
 use svision_raster_soft::SoftRasterizer;
 use svision_winit::WinitBackend;
 use winit::{
@@ -78,7 +78,7 @@ impl GraphicsBackend for SoftbufferBackend {
         self.apply_size(size);
     }
 
-    fn rasterizer(&mut self) -> &mut dyn Rasterizer {
+    fn rasterizer(&mut self) -> &mut dyn TextRasterizer {
         &mut self.rasterizer
     }
 

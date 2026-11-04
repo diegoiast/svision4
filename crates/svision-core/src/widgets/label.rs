@@ -1,7 +1,6 @@
 use crate::{
-    impl_widget_any,
+    Color, FontSpec, Point, Size, SizePolicy, SizePolicy2D, TextAlign, impl_widget_any,
     widget::{MeasureCtx, PaintCtx, Widget},
-    Color, FontSpec, Point, Size, SizePolicy, SizePolicy2D, TextAlign,
 };
 
 /// A non-interactive text label.

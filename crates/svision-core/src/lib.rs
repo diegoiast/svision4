@@ -75,12 +75,12 @@ macro_rules! impl_widget_any {
 /// Common imports.
 pub mod prelude {
     pub use crate::{
-        impl_widget_any, Align, ArrangeCtx, Button, ButtonState, ButtonStateHandler, Checkbox,
-        Color, Column, ComboBox, CrossAlign, Event, EventCtx, FontSpec, GraphicsBackend, HBoxLayout,
-        Insets, Key, Label, ListView, MeasureCtx, Modifiers, MouseButton, Orientation, PaintCtx,
-        Palette, Painter, Point, RadioButton, RadioButtonGroup, Rect, Row, ScrollBar, Size,
-        SizePolicy, SizePolicy2D, Spacer, TextAlign, TextEngine, TextRasterizer, Theme,
-        TypedWidgetHandle, Ui, VBoxLayout, Widget, WidgetHandle, WidgetId, WidgetState,
-        checkbox, radiobutton,
+        Align, ArrangeCtx, Button, ButtonState, ButtonStateHandler, Checkbox, Color, Column,
+        ComboBox, CrossAlign, Event, EventCtx, FontSpec, GraphicsBackend, HBoxLayout, Insets, Key,
+        Label, ListView, MeasureCtx, Modifiers, MouseButton, Orientation, PaintCtx, Painter,
+        Palette, Point, RadioButton, RadioButtonGroup, Rect, Row, ScrollBar, Size, SizePolicy,
+        SizePolicy2D, Spacer, TextAlign, TextEngine, TextRasterizer, Theme, TypedWidgetHandle, Ui,
+        VBoxLayout, Widget, WidgetHandle, WidgetId, WidgetState, checkbox, impl_widget_any,
+        radiobutton,
     };
 }

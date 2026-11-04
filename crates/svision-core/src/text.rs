@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{painter::Painter, Color, Point, Size};
+use crate::{Color, Point, Size, painter::Painter};
 
 /// Description of a font request.
 ///

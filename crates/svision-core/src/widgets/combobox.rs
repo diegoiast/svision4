@@ -1,7 +1,7 @@
 use crate::{
+    Color, Event, FontSpec, Key, MouseButton, Point, Rect, Size, SizePolicy, SizePolicy2D,
     impl_widget_any,
     widget::{EventCtx, MeasureCtx, PaintCtx, Widget},
-    Color, Event, FontSpec, Key, MouseButton, Point, Rect, Size, SizePolicy, SizePolicy2D,
 };
 
 const HEADER_HEIGHT: f32 = 36.0;
@@ -247,8 +247,13 @@ impl Widget for ComboBox {
         let bounds = ctx.bounds;
         let header = Self::header_rect(bounds);
 
-        let background = if self.open { theme.surface() } else { theme.accent() };
-        ctx.rasterizer.fill_round_rect(header, theme.radius(), background);
+        let background = if self.open {
+            theme.surface()
+        } else {
+            theme.accent()
+        };
+        ctx.rasterizer
+            .fill_round_rect(header, theme.radius(), background);
         if !self.open {
             ctx.rasterizer
                 .stroke_round_rect(header, theme.radius(), theme.accent(), 1.0);
@@ -258,7 +263,11 @@ impl Widget for ComboBox {
             .selected_text()
             .or(self.placeholder.as_deref())
             .unwrap_or("Select...");
-        let color = if self.open { theme.text() } else { theme.accent_text() };
+        let color = if self.open {
+            theme.text()
+        } else {
+            theme.accent_text()
+        };
         let font = FontSpec::new(theme.font_size());
         let x = header.x + 12.0;
         let y = header.y + (header.height - theme.font_size() * 1.25) * 0.5;

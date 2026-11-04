@@ -1,9 +1,8 @@
 use crate::{
-    Event, MouseButton,
-    widget::{EventCtx, MeasureCtx, PaintCtx, Widget, SizePolicy2D, SizePolicy},
-    geometry::{Point, Rect, Size},
+    Event, FontSpec, MouseButton,
     button_state::ButtonState,
-    FontSpec,
+    geometry::{Point, Rect, Size},
+    widget::{EventCtx, MeasureCtx, PaintCtx, SizePolicy, SizePolicy2D, Widget},
 };
 
 /// A checkbox widget that can be toggled on/off.
@@ -102,7 +101,13 @@ impl Widget for Checkbox {
         let border_color = match state {
             ButtonState::ClickedInside => theme.accent_pressed(),
             ButtonState::Hovered => theme.accent_hover(),
-            _ => if self.checked { theme.accent() } else { theme.border() },
+            _ => {
+                if self.checked {
+                    theme.accent()
+                } else {
+                    theme.border()
+                }
+            }
         };
         ctx.rasterizer.stroke_rect(box_b, border_color, 1.0);
 

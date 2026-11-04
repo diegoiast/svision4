@@ -1,9 +1,8 @@
 use crate::{
-    Event, MouseButton,
-    widget::{ArrangeCtx, EventCtx, MeasureCtx, PaintCtx, Widget, SizePolicy2D, SizePolicy},
-    geometry::{Point, Rect, Size},
+    Event, FontSpec, MouseButton, Ui, WidgetHandle, WidgetId,
     button_state::ButtonState,
-    FontSpec, Ui, WidgetHandle, WidgetId,
+    geometry::{Point, Rect, Size},
+    widget::{ArrangeCtx, EventCtx, MeasureCtx, PaintCtx, SizePolicy, SizePolicy2D, Widget},
 };
 
 /// A single radio button.
@@ -105,7 +104,13 @@ impl Widget for RadioButton {
         let outer_color = match state {
             ButtonState::ClickedInside => theme.accent_pressed(),
             ButtonState::Hovered => theme.accent_hover(),
-            _ => if self.checked { theme.accent() } else { theme.border() },
+            _ => {
+                if self.checked {
+                    theme.accent()
+                } else {
+                    theme.border()
+                }
+            }
         };
         ctx.rasterizer.fill_ellipse(outer, outer_color);
 
@@ -308,8 +313,7 @@ impl Widget for RadioButtonGroup {
         let mut content_height = 0.0f32;
         let mut widest = 0.0f32;
         for (child_id, _) in &self.radios {
-            let child_size =
-                ctx.measure_child(*child_id, Size::new(content_width, f32::INFINITY));
+            let child_size = ctx.measure_child(*child_id, Size::new(content_width, f32::INFINITY));
             content_height += child_size.height;
             widest = widest.max(child_size.width);
         }

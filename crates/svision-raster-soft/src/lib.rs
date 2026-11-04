@@ -1,12 +1,12 @@
 //! CPU rasterizer for `svision`, built on tiny-skia + fontdue.
 //!
-//! This is one concrete [`Rasterizer`](svision_core::Rasterizer)
-//! implementation. Nothing in `svision-core` depends on it; swapping in GDI+,
+//! This is one concrete [`TextRasterizer`](svision_core::TextRasterizer)
+//! implementation (which is also a [`Painter`](svision_core::Painter)). Nothing in `svision-core` depends on it; swapping in GDI+,
 //! OpenGL, or another drawing engine only requires another implementation of
-//! the trait.
+//! the traits.
 
 mod font;
 mod rasterizer;
 
-pub use font::{load_default_font, FontdueTextEngine};
+pub use font::{FontdueTextEngine, load_default_font};
 pub use rasterizer::SoftRasterizer;

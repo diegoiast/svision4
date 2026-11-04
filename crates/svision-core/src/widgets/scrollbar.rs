@@ -1,7 +1,6 @@
 use crate::{
-    impl_widget_any,
+    Event, Key, MouseButton, Point, Rect, Size, SizePolicy, SizePolicy2D, impl_widget_any,
     widget::{EventCtx, MeasureCtx, PaintCtx, Widget},
-    Event, Key, MouseButton, Point, Rect, Size, SizePolicy, SizePolicy2D,
 };
 
 /// Scroll bar orientation.

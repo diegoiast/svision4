@@ -1,7 +1,6 @@
 use crate::{
-    impl_widget_any,
+    Size, SizePolicy, SizePolicy2D, impl_widget_any,
     widget::{MeasureCtx, Widget},
-    Size, SizePolicy, SizePolicy2D,
 };
 
 /// An invisible, fixed-size gap.

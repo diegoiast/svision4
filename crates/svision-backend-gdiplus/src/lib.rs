@@ -9,16 +9,16 @@
 use std::{error::Error, ffi::c_void, ptr::null_mut, rc::Rc, sync::Arc, sync::OnceLock};
 
 use svision_core::{
-    ApproxTextEngine, Color, FontSpec, GraphicsBackend, Point, Rasterizer, Rect, Size, TextEngine,
+    ApproxTextEngine, Color, FontSpec, GraphicsBackend, Painter, Point, Rect, Size, TextEngine,
+    TextRasterizer,
 };
 use svision_raster_soft::FontdueTextEngine;
 use svision_winit::WinitBackend;
 use windows::{
-    core::HSTRING,
     Win32::{
         Foundation::HWND,
         Graphics::{
-            Gdi::{GetDC, ReleaseDC, HDC},
+            Gdi::{GetDC, HDC, ReleaseDC},
             GdiPlus::{
                 CombineModeIntersect, FillModeAlternate, FontStyleRegular, GdipAddPathArc,
                 GdipAddPathLine, GdipClosePathFigure, GdipCreateFont, GdipCreateFontFamilyFromName,
@@ -35,6 +35,7 @@ use windows::{
             },
         },
     },
+    core::HSTRING,
 };
 use winit::{
     raw_window_handle::{HasWindowHandle, RawWindowHandle},
@@ -294,7 +295,7 @@ impl GdiPlusRasterizer {
     }
 }
 
-impl Rasterizer for GdiPlusRasterizer {
+impl Painter for GdiPlusRasterizer {
     fn begin_frame(&mut self, size: Size) {
         self.end_frame();
         self.size = size;
@@ -372,10 +373,6 @@ impl Rasterizer for GdiPlusRasterizer {
         });
     }
 
-    fn draw_text(&mut self, text: &str, origin: Point, font: &FontSpec, color: Color) {
-        self.draw_text_inner(text, origin, font, color);
-    }
-
     fn push_clip(&mut self, rect: Rect) {
         let Some(graph) = self.graphics else {
             self.clip_states.push(None);
@@ -416,6 +413,12 @@ impl Rasterizer for GdiPlusRasterizer {
                 GdipRestoreGraphics(graphics, state);
             }
         }
+    }
+}
+
+impl TextRasterizer for GdiPlusRasterizer {
+    fn draw_text(&mut self, text: &str, origin: Point, font: &FontSpec, color: Color) {
+        self.draw_text_inner(text, origin, font, color);
     }
 
     fn text_engine(&self) -> Option<Rc<dyn svision_core::TextEngine>> {
@@ -466,7 +469,7 @@ impl GraphicsBackend for GdiPlusBackend {
         self.size = size;
     }
 
-    fn rasterizer(&mut self) -> &mut dyn Rasterizer {
+    fn rasterizer(&mut self) -> &mut dyn TextRasterizer {
         &mut self.rasterizer
     }
 

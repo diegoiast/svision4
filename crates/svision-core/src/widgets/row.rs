@@ -1,7 +1,6 @@
 use crate::{
-    impl_widget_any,
+    Align, Color, Insets, Point, Rect, Size, Theme, impl_widget_any,
     widget::{ArrangeCtx, MeasureCtx, PaintCtx, SizePolicy, SizePolicy2D, Widget},
-    Align, Color, Insets, Point, Rect, Size, Theme,
 };
 
 pub struct Row {
