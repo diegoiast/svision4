@@ -1,4 +1,4 @@
-use crate::{Color, Rect};
+use crate::{Color, Point, Rect};
 
 use crate::painter::Painter;
 
@@ -12,6 +12,8 @@ pub struct Palette {
     pub surface_pressed: Color,
     pub border: Color,
     pub frame: Color,
+    pub frame_highlight: Color,
+    pub frame_shadow: Color,
 
     pub text: Color,
     pub text_muted: Color,
@@ -92,14 +94,40 @@ impl Theme {
         }
         let width = 1.0;
         if self.radius() == 0.0 {
-            // Windows 95: double frame, triple for default buttons.
+            // Windows 95: raised border — top/left edges are light (highlight),
+            // bottom/right edges are dark (shadow). Double frame for normal
+            // buttons, triple frame for default buttons.
             let layers = match kind {
                 FrameKind::Normal => 2,
                 FrameKind::Default => 3,
             };
             for i in 0..layers {
                 let inset = i as f32 * width;
-                painter.stroke_rect(rect.inset_all(inset), self.palette.frame, width);
+                let r = rect.inset_all(inset);
+                painter.draw_line(
+                    Point::new(r.x, r.y),
+                    Point::new(r.right(), r.y),
+                    self.palette.frame_highlight,
+                    width,
+                );
+                painter.draw_line(
+                    Point::new(r.x, r.y),
+                    Point::new(r.x, r.bottom()),
+                    self.palette.frame_highlight,
+                    width,
+                );
+                painter.draw_line(
+                    Point::new(r.x, r.bottom()),
+                    Point::new(r.right(), r.bottom()),
+                    self.palette.frame_shadow,
+                    width,
+                );
+                painter.draw_line(
+                    Point::new(r.right(), r.y),
+                    Point::new(r.right(), r.bottom()),
+                    self.palette.frame_shadow,
+                    width,
+                );
             }
         } else {
             // Windows / modern: single lined frame.
