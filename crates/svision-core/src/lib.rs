@@ -77,9 +77,9 @@ pub mod prelude {
     pub use crate::{
         Align, ArrangeCtx, Button, ButtonState, ButtonStateHandler, Checkbox, Color, Column,
         ComboBox, CrossAlign, Event, EventCtx, FontSpec, FrameKind, GraphicsBackend, HBoxLayout,
-        Insets, Key, Label, ListView, MeasureCtx, Modifiers, MouseButton, Orientation, PaintCtx,
-        Painter, Palette, Point, RadioButton, RadioButtonGroup, Rect, Row, ScrollBar, Size,
-        SizePolicy, SizePolicy2D, Spacer, TextAlign, TextEngine, TextRasterizer, Theme,
+        Input, Insets, Key, Label, ListView, MeasureCtx, Modifiers, MouseButton, Orientation,
+        PaintCtx, Painter, Palette, Point, RadioButton, RadioButtonGroup, Rect, Row, ScrollBar,
+        Size, SizePolicy, SizePolicy2D, Spacer, TextAlign, TextEngine, TextRasterizer, Theme,
         TypedWidgetHandle, Ui, VBoxLayout, Widget, WidgetHandle, WidgetId, WidgetState, checkbox,
         impl_widget_any, radiobutton,
     };
