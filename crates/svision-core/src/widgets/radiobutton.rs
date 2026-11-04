@@ -1,9 +1,48 @@
 use crate::{
-    Event, FontSpec, MouseButton, Ui, WidgetHandle, WidgetId,
+    Color, Event, FontSpec, MouseButton, Painter, Ui, WidgetHandle, WidgetId,
     button_state::ButtonState,
     geometry::{Point, Rect, Size},
     widget::{ArrangeCtx, EventCtx, MeasureCtx, PaintCtx, SizePolicy, SizePolicy2D, Widget},
 };
+
+/// Draws a dotted (dashed) rectangle outline using short line segments.
+///
+/// Used for focus indicators on Windows themes. Windows 95 (zero corner
+/// radius) intentionally does not get a dotted frame.
+fn draw_dotted_rect(rasterizer: &mut dyn Painter, rect: Rect, color: Color, width: f32) {
+    let dash = 4.0;
+    let gap = 4.0;
+
+    // Top and bottom edges.
+    let mut x = rect.x;
+    while x < rect.right() {
+        let x1 = x;
+        let x2 = (x + dash).min(rect.right());
+        rasterizer.draw_line(Point::new(x1, rect.y), Point::new(x2, rect.y), color, width);
+        rasterizer.draw_line(
+            Point::new(x1, rect.bottom()),
+            Point::new(x2, rect.bottom()),
+            color,
+            width,
+        );
+        x += dash + gap;
+    }
+
+    // Left and right edges.
+    let mut y = rect.y;
+    while y < rect.bottom() {
+        let y1 = y;
+        let y2 = (y + dash).min(rect.bottom());
+        rasterizer.draw_line(Point::new(rect.x, y1), Point::new(rect.x, y2), color, width);
+        rasterizer.draw_line(
+            Point::new(rect.right(), y1),
+            Point::new(rect.right(), y2),
+            color,
+            width,
+        );
+        y += dash + gap;
+    }
+}
 
 /// A single radio button.
 ///
@@ -137,6 +176,12 @@ impl Widget for RadioButton {
             let text_y = b.y + (b.height - self.measured_text.height) / 2.0;
             ctx.rasterizer
                 .draw_text(&self.label, Point::new(text_x, text_y), &font, theme.text());
+        }
+
+        // Dotted focus frame on Windows themes (non-zero radius).
+        // Windows 95 (radius == 0) does not get a dotted frame.
+        if ctx.state.focused && ctx.state.window_active && theme.radius() > 0.0 {
+            draw_dotted_rect(&mut *ctx.rasterizer, ctx.bounds, theme.focus(), 1.0);
         }
     }
 

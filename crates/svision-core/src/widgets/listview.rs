@@ -340,6 +340,12 @@ impl Widget for ListView {
             };
             ctx.rasterizer.fill_rect(item_rect, background);
 
+            // Draw a visible frame around selected items so the selection is
+            // obvious even on dark themes.
+            if is_selected {
+                ctx.rasterizer.stroke_rect(item_rect, theme.focus(), 1.0);
+            }
+
             let text_color = if is_selected {
                 theme.accent_text()
             } else {
