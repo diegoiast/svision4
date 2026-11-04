@@ -338,12 +338,18 @@ impl Widget for ListView {
             } else {
                 theme.surface()
             };
-            ctx.rasterizer.fill_rect(item_rect, background);
 
-            // Draw a visible frame around selected items so the selection is
-            // obvious even on dark themes.
+            // Fill an inset rect so the selected item has smaller internals and
+            // a visible border around it.
             if is_selected {
-                ctx.rasterizer.stroke_rect(item_rect, theme.focus(), 1.0);
+                let fill = item_rect.inset_all(2.0);
+                ctx.rasterizer.fill_rect(fill, background);
+                // Use accent_text (white on all themes) for a visible border
+                // regardless of how close accent and focus colors are.
+                ctx.rasterizer
+                    .stroke_rect(item_rect, theme.accent_text(), 1.0);
+            } else {
+                ctx.rasterizer.fill_rect(item_rect, background);
             }
 
             let text_color = if is_selected {

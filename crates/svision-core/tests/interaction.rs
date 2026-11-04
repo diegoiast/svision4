@@ -775,3 +775,71 @@ fn ctrl_left_moves_to_word_start() {
         Some(12)
     );
 }
+
+#[test]
+fn checkbox_toggles_on_space_and_enter() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let checkbox_handle = ui
+        .add_child(&root, Checkbox::new("Agree"))
+        .cast::<Checkbox>()
+        .expect("checkbox");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    ui.set_focus(Some(checkbox_handle.id()));
+    assert!(!checkbox_handle.with(|c: &Checkbox| c.is_checked()));
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Space,
+        modifiers: Modifiers::default(),
+    });
+    assert!(checkbox_handle.with(|c: &Checkbox| c.is_checked()));
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Enter,
+        modifiers: Modifiers::default(),
+    });
+    assert!(!checkbox_handle.with(|c: &Checkbox| c.is_checked()));
+}
+
+#[test]
+fn radiobutton_checks_on_space() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let radio_handle = ui
+        .add_child(&root, RadioButton::new("Option").id("a"))
+        .cast::<RadioButton>()
+        .expect("radio");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    ui.set_focus(Some(radio_handle.id()));
+    assert!(!radio_handle.with(|r: &RadioButton| r.is_checked()));
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Space,
+        modifiers: Modifiers::default(),
+    });
+    assert!(radio_handle.with(|r: &RadioButton| r.is_checked()));
+}
+
+#[test]
+fn listview_selected_item_has_visible_frame() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(200.0, 80.0));
+    let root = ui.set_root(Column::new().padding(0.0).spacing(0.0));
+    let list_handle = ui
+        .add_child(
+            &root,
+            ListView::new((0..5).map(|i| format!("Item {i}"))).selected(2),
+        )
+        .cast::<ListView>()
+        .expect("list");
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    assert_eq!(list_handle.with(|l: &ListView| l.selected_index()), Some(2));
+}

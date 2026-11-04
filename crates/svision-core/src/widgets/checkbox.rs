@@ -1,5 +1,5 @@
 use crate::{
-    Color, Event, FontSpec, MouseButton, Painter,
+    Color, Event, FontSpec, Key, MouseButton, Painter,
     button_state::ButtonState,
     geometry::{Point, Rect, Size},
     widget::{EventCtx, MeasureCtx, PaintCtx, SizePolicy, SizePolicy2D, Widget},
@@ -70,6 +70,10 @@ impl Checkbox {
     pub fn selected(mut self, selected: bool) -> Self {
         self.checked = selected;
         self
+    }
+
+    pub fn is_checked(&self) -> bool {
+        self.checked
     }
 
     /// Set a callback that is called when the checkbox is clicked.
@@ -179,6 +183,17 @@ impl Widget for Checkbox {
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event) -> bool {
         match event {
+            Event::KeyDown {
+                key: Key::Space | Key::Enter,
+                ..
+            } => {
+                self.checked = !self.checked;
+                ctx.invalidate();
+                if let Some(ref mut f) = self.on_change {
+                    f(ctx);
+                }
+                true
+            }
             Event::MouseDown {
                 position,
                 button: MouseButton::Left,

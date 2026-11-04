@@ -1,5 +1,5 @@
 use crate::{
-    Color, Event, FontSpec, MouseButton, Painter, Ui, WidgetHandle, WidgetId,
+    Color, Event, FontSpec, Key, MouseButton, Painter, Ui, WidgetHandle, WidgetId,
     button_state::ButtonState,
     geometry::{Point, Rect, Size},
     widget::{ArrangeCtx, EventCtx, MeasureCtx, PaintCtx, SizePolicy, SizePolicy2D, Widget},
@@ -187,6 +187,19 @@ impl Widget for RadioButton {
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event) -> bool {
         match event {
+            Event::KeyDown {
+                key: Key::Space | Key::Enter,
+                ..
+            } => {
+                if !self.checked {
+                    self.checked = true;
+                    ctx.invalidate();
+                    if let Some(ref mut f) = self.on_change {
+                        f(ctx);
+                    }
+                }
+                true
+            }
             Event::MouseDown {
                 position,
                 button: MouseButton::Left,
