@@ -104,28 +104,43 @@ impl Theme {
             for i in 0..layers {
                 let inset = i as f32 * width;
                 let r = rect.inset_all(inset);
+                // Default buttons draw their outermost frame in black.
+                let black = kind == FrameKind::Default && i == 0;
+                let color = if black {
+                    Color::BLACK
+                } else {
+                    self.palette.frame_highlight
+                };
                 painter.draw_line(
                     Point::new(r.x, r.y),
                     Point::new(r.right(), r.y),
-                    self.palette.frame_highlight,
+                    color,
                     width,
                 );
                 painter.draw_line(
                     Point::new(r.x, r.y),
                     Point::new(r.x, r.bottom()),
-                    self.palette.frame_highlight,
+                    color,
                     width,
                 );
                 painter.draw_line(
                     Point::new(r.x, r.bottom()),
                     Point::new(r.right(), r.bottom()),
-                    self.palette.frame_shadow,
+                    if black {
+                        Color::BLACK
+                    } else {
+                        self.palette.frame_shadow
+                    },
                     width,
                 );
                 painter.draw_line(
                     Point::new(r.right(), r.y),
                     Point::new(r.right(), r.bottom()),
-                    self.palette.frame_shadow,
+                    if black {
+                        Color::BLACK
+                    } else {
+                        self.palette.frame_shadow
+                    },
                     width,
                 );
             }
