@@ -89,6 +89,30 @@ impl Input {
             .unwrap_or(0)
     }
 
+    /// Byte index of the start of the word before the cursor.
+    fn prev_word_start(&self) -> usize {
+        let mut i = self.cursor;
+        while i > 0 && self.text[i - 1..].chars().next().unwrap().is_whitespace() {
+            i -= 1;
+        }
+        while i > 0 && !self.text[i - 1..].chars().next().unwrap().is_whitespace() {
+            i -= 1;
+        }
+        i
+    }
+
+    /// Byte index of the end of the word after the cursor.
+    fn next_word_end(&self) -> usize {
+        let mut i = self.cursor;
+        while i < self.text.len() && self.text[i..].chars().next().unwrap().is_whitespace() {
+            i += 1;
+        }
+        while i < self.text.len() && !self.text[i..].chars().next().unwrap().is_whitespace() {
+            i += 1;
+        }
+        i
+    }
+
     /// Byte index of the next character boundary after the cursor.
     fn next_char_boundary(&self) -> usize {
         self.text[self.cursor..]
@@ -203,7 +227,7 @@ impl Widget for Input {
                 ctx.invalidate();
                 true
             }
-            Event::KeyDown { key, .. } if !self.readonly => {
+            Event::KeyDown { key, modifiers } if !self.readonly => {
                 let handled = match key {
                     Key::Backspace => {
                         if self.cursor > 0 {
@@ -221,11 +245,19 @@ impl Widget for Input {
                         true
                     }
                     Key::Left => {
-                        self.cursor = self.prev_char_boundary();
+                        self.cursor = if modifiers.ctrl {
+                            self.prev_word_start()
+                        } else {
+                            self.prev_char_boundary()
+                        };
                         true
                     }
                     Key::Right => {
-                        self.cursor = self.next_char_boundary();
+                        self.cursor = if modifiers.ctrl {
+                            self.next_word_end()
+                        } else {
+                            self.next_char_boundary()
+                        };
                         true
                     }
                     Key::Home => {
