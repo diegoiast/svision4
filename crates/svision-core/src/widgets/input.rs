@@ -165,16 +165,18 @@ impl Widget for Input {
             theme.surface()
         };
 
+        let is_focused = ctx.state.focused && ctx.state.window_active;
+
         ctx.rasterizer
             .fill_round_rect(ctx.bounds, theme.radius(), background);
-        theme.frame(&mut *ctx.rasterizer, ctx.bounds, FrameKind::Normal);
+        theme.frame(
+            &mut *ctx.rasterizer,
+            ctx.bounds,
+            FrameKind::Normal,
+            is_focused,
+        );
 
         let inner = ctx.bounds.inset_all(1.0);
-        if ctx.state.focused && ctx.state.window_active {
-            ctx.rasterizer
-                .stroke_round_rect(inner, theme.radius(), theme.focused(), 1.0);
-        }
-
         let font = self.font(theme.font_size());
         let text_color = if enabled {
             theme.text()

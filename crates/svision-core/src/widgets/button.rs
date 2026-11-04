@@ -256,20 +256,8 @@ impl Widget for Button {
         } else {
             FrameKind::Normal
         };
-        theme.frame(&mut *ctx.rasterizer, ctx.bounds, frame_kind);
-
-        if ctx.state.focused && ctx.state.window_active {
-            ctx.rasterizer.stroke_round_rect(
-                ctx.bounds.inset_all(2.0),
-                (theme.radius() - 2.0).max(0.0),
-                if self.primary {
-                    theme.focused()
-                } else {
-                    theme.focus()
-                },
-                1.5,
-            );
-        }
+        let is_focused = ctx.state.focused && ctx.state.window_active;
+        theme.frame(&mut *ctx.rasterizer, ctx.bounds, frame_kind, is_focused);
 
         let text_color = if !enabled {
             theme.text_muted()

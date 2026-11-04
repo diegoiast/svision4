@@ -89,7 +89,7 @@ impl Theme {
     ///
     /// Windows themes draw a single line; Windows 95 draws a double frame,
     /// and a triple frame for default buttons.
-    pub fn frame(&self, painter: &mut dyn Painter, rect: Rect, kind: FrameKind) {
+    pub fn frame(&self, painter: &mut dyn Painter, rect: Rect, kind: FrameKind, focused: bool) {
         if rect.width <= 0.0 || rect.height <= 0.0 {
             return;
         }
@@ -147,7 +147,13 @@ impl Theme {
             }
         } else {
             // Windows / modern: single lined frame.
-            painter.stroke_round_rect(rect, self.radius(), self.palette.frame, width);
+            // When focused, use the focus color; otherwise use the frame color.
+            let color = if focused {
+                self.palette.focus
+            } else {
+                self.palette.frame
+            };
+            painter.stroke_round_rect(rect, self.radius(), color, width);
         }
     }
 

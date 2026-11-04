@@ -1,5 +1,5 @@
 use crate::{
-    Event, FontSpec, Key, MouseButton, Point, Rect, Size, SizePolicy, SizePolicy2D,
+    Event, FontSpec, FrameKind, Key, MouseButton, Point, Rect, Size, SizePolicy, SizePolicy2D,
     impl_widget_any,
     widget::{EventCtx, MeasureCtx, PaintCtx, Widget},
 };
@@ -248,17 +248,9 @@ impl Widget for ComboBox {
         let header = Self::header_rect(bounds);
         let is_focused = ctx.state.focused && ctx.state.window_active;
 
-        // Windows 11: closed combobox looks like an input field with a subtle
-        // border. When focused, the border becomes the focus color.
-        let border_color = if is_focused {
-            theme.focus()
-        } else {
-            theme.border()
-        };
         ctx.rasterizer
             .fill_round_rect(header, theme.radius(), theme.surface());
-        ctx.rasterizer
-            .stroke_round_rect(header, theme.radius(), border_color, 1.0);
+        theme.frame(&mut *ctx.rasterizer, header, FrameKind::Normal, is_focused);
 
         let text = self
             .selected_text()

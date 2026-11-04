@@ -1,5 +1,5 @@
 use crate::{
-    Event, Key, MouseButton, Point, Rect, ScrollBar, Size, SizePolicy, SizePolicy2D,
+    Event, FrameKind, Key, MouseButton, Point, Rect, ScrollBar, Size, SizePolicy, SizePolicy2D,
     impl_widget_any,
     widget::{ArrangeCtx, EventCtx, MeasureCtx, PaintCtx, Widget},
 };
@@ -310,10 +310,11 @@ impl Widget for ListView {
         let bounds = ctx.bounds;
         self.sync_scrollbar();
 
+        let is_focused = ctx.state.focused && ctx.state.window_active;
+
         ctx.rasterizer
             .fill_round_rect(bounds, theme.radius(), theme.surface());
-        ctx.rasterizer
-            .stroke_round_rect(bounds, theme.radius(), theme.border(), 1.0);
+        theme.frame(&mut *ctx.rasterizer, bounds, FrameKind::Normal, is_focused);
 
         let content = self.content_bounds(bounds);
         ctx.rasterizer.push_clip(content);
@@ -366,15 +367,6 @@ impl Widget for ListView {
                 state: ctx.state,
             };
             self.scrollbar.borrow().paint(&mut scrollbar_ctx);
-        }
-
-        if ctx.state.focused && ctx.state.window_active {
-            ctx.rasterizer.stroke_round_rect(
-                bounds.inset_all(2.0),
-                (theme.radius() - 2.0).max(0.0),
-                theme.focus(),
-                1.5,
-            );
         }
     }
 

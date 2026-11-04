@@ -169,6 +169,10 @@ impl Widget for RadioButton {
         }
     }
 
+    fn focusable(&self) -> bool {
+        true
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
