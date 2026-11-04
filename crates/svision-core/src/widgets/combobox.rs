@@ -1,5 +1,5 @@
 use crate::{
-    Color, Event, FontSpec, Key, MouseButton, Point, Rect, Size, SizePolicy, SizePolicy2D,
+    Event, FontSpec, Key, MouseButton, Point, Rect, Size, SizePolicy, SizePolicy2D,
     impl_widget_any,
     widget::{EventCtx, MeasureCtx, PaintCtx, Widget},
 };
@@ -246,48 +246,62 @@ impl Widget for ComboBox {
         let theme = ctx.theme;
         let bounds = ctx.bounds;
         let header = Self::header_rect(bounds);
+        let is_focused = ctx.state.focused && ctx.state.window_active;
 
-        let background = if self.open {
-            theme.surface()
+        // Windows 11: closed combobox looks like an input field with a subtle
+        // border. When focused, the border becomes the focus color.
+        let border_color = if is_focused {
+            theme.focus()
         } else {
-            theme.accent()
+            theme.border()
         };
         ctx.rasterizer
-            .fill_round_rect(header, theme.radius(), background);
-        if !self.open {
-            ctx.rasterizer
-                .stroke_round_rect(header, theme.radius(), theme.accent(), 1.0);
-        }
+            .fill_round_rect(header, theme.radius(), theme.surface());
+        ctx.rasterizer
+            .stroke_round_rect(header, theme.radius(), border_color, 1.0);
 
         let text = self
             .selected_text()
             .or(self.placeholder.as_deref())
             .unwrap_or("Select...");
-        let color = if self.open {
-            theme.text()
-        } else {
-            theme.accent_text()
-        };
+        // Selected-item indicator: show a dot marker when an item is selected.
+        let text_prefix = if self.selected.is_some() { "• " } else { "" };
+        let color = theme.text();
         let font = FontSpec::new(theme.font_size());
         let x = header.x + 12.0;
         let y = header.y + (header.height - theme.font_size() * 1.25) * 0.5;
-        ctx.rasterizer
-            .draw_text(text, Point::new(x, y), &font, color);
+        ctx.rasterizer.draw_text(
+            &format!("{text_prefix}{text}"),
+            Point::new(x, y),
+            &font,
+            color,
+        );
 
+        // Chevron: subtle color, not the accent color.
         let chevron_x = header.right() - 16.0;
         let chevron_y = header.y + header.height * 0.5;
+        let chevron_color = theme.text_muted();
         ctx.rasterizer.draw_line(
             Point::new(chevron_x - 5.0, chevron_y - 2.0),
             Point::new(chevron_x, chevron_y + 3.0),
-            color,
+            chevron_color,
             1.5,
         );
         ctx.rasterizer.draw_line(
             Point::new(chevron_x, chevron_y + 3.0),
             Point::new(chevron_x + 5.0, chevron_y - 2.0),
-            color,
+            chevron_color,
             1.5,
         );
+
+        if is_focused {
+            ctx.rasterizer.stroke_round_rect(
+                header.inset_all(2.0),
+                (theme.radius() - 2.0).max(0.0),
+                theme.focus(),
+                1.5,
+            );
+        }
 
         if self.open {
             let list = Rect::new(
@@ -296,7 +310,10 @@ impl Widget for ComboBox {
                 bounds.width,
                 (bounds.height - HEADER_HEIGHT).max(0.0),
             );
-            ctx.rasterizer.fill_rect(list, Color::hex(0xffffff));
+            ctx.rasterizer
+                .fill_round_rect(list, theme.radius(), theme.surface());
+            ctx.rasterizer
+                .stroke_round_rect(list, theme.radius(), theme.border(), 1.0);
 
             for (index, item) in self.items.iter().enumerate() {
                 let item_rect = Self::item_rect(bounds, index);
@@ -316,26 +333,16 @@ impl Widget for ComboBox {
                 } else {
                     theme.text()
                 };
+                // Marker: checkmark on the selected item.
+                let prefix = if is_selected { "✓ " } else { "  " };
                 let text_y = item_rect.y + (item_rect.height - theme.font_size() * 1.25) * 0.5;
                 ctx.rasterizer.draw_text(
-                    item,
+                    &format!("{prefix}{item}"),
                     Point::new(item_rect.x + 12.0, text_y),
                     &font,
                     text_color,
                 );
             }
-
-            ctx.rasterizer
-                .stroke_round_rect(bounds, theme.radius(), theme.border(), 1.0);
-        }
-
-        if ctx.state.focused && ctx.state.window_active {
-            ctx.rasterizer.stroke_round_rect(
-                header.inset_all(2.0),
-                (theme.radius() - 2.0).max(0.0),
-                theme.focus(),
-                1.5,
-            );
         }
     }
 
