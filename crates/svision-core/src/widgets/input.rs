@@ -292,6 +292,10 @@ impl Widget for Input {
         }
     }
 
+    fn focusable(&self) -> bool {
+        true
+    }
+
     impl_widget_any!();
 }
 

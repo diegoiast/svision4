@@ -428,6 +428,10 @@ impl Widget for ComboBox {
         }
     }
 
+    fn focusable(&self) -> bool {
+        true
+    }
+
     impl_widget_any!();
 }
 

@@ -556,6 +556,10 @@ impl Widget for ListView {
         }
     }
 
+    fn focusable(&self) -> bool {
+        true
+    }
+
     impl_widget_any!();
 }
 

@@ -217,6 +217,11 @@ pub trait Widget: Any {
         Insets::ZERO
     }
 
+    /// Whether this widget can receive focus via Tab navigation.
+    fn focusable(&self) -> bool {
+        false
+    }
+
     fn event(&mut self, _ctx: &mut EventCtx, _event: &Event) -> bool {
         false
     }

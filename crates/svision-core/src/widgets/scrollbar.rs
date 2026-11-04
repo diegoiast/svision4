@@ -594,6 +594,10 @@ impl Widget for ScrollBar {
         }
     }
 
+    fn focusable(&self) -> bool {
+        true
+    }
+
     impl_widget_any!();
 }
 

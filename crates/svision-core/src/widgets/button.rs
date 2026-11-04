@@ -330,6 +330,10 @@ impl Widget for Button {
         }
     }
 
+    fn focusable(&self) -> bool {
+        true
+    }
+
     impl_widget_any!();
 }
 

@@ -332,13 +332,7 @@ impl Ui {
                 return;
             };
             if let Some(widget) = inner.widgets.get(&id) {
-                if (widget.as_any().is::<crate::Button>()
-                    || widget.as_any().is::<crate::ComboBox>()
-                    || widget.as_any().is::<crate::ListView>()
-                    || widget.as_any().is::<crate::ScrollBar>())
-                    && node.enabled
-                    && node.visible
-                {
+                if widget.focusable() && node.enabled && node.visible {
                     result.push(id);
                 }
             }
