@@ -152,6 +152,9 @@ fn build(ui: &Ui) {
         &buttons,
         Button::new("Auto repeat")
             .min_width(110.0)
+            .auto_repeat(true)
+            .auto_repeat_delay(0.4)
+            .auto_repeat_interval(0.15)
             .on_click(move |_ctx| {
                 let value = repeat_count.get() + 1;
                 repeat_count.set(value);

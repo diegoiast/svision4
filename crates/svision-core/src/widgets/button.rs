@@ -22,6 +22,7 @@ pub struct Button {
     auto_repeat_interval: f32,
     auto_repeat_pressed_at: Option<Instant>,
     auto_repeat_last_fired: Option<Instant>,
+    auto_repeat_paused: bool,
     on_click: Option<ClickHandler>,
     measured_text: Size,
 }
@@ -42,6 +43,7 @@ impl Button {
             auto_repeat_interval: 0.4,
             auto_repeat_pressed_at: None,
             auto_repeat_last_fired: None,
+            auto_repeat_paused: false,
             on_click: None,
             measured_text: Size::ZERO,
         }
@@ -170,14 +172,31 @@ impl Button {
             return None;
         }
         let pressed_at = self.auto_repeat_pressed_at?;
-        if ctx.state.interaction != ButtonState::ClickedInside {
-            self.auto_repeat_pressed_at = None;
-            self.auto_repeat_last_fired = None;
-            return None;
+        let interval = Duration::from_secs_f32(self.auto_repeat_interval.max(0.001));
+
+        match ctx.state.interaction {
+            // Still held and the pointer is back inside: resume repeating.
+            ButtonState::ClickedInside => {
+                if self.auto_repeat_paused {
+                    // The pointer came back: restart the cadence from now.
+                    self.auto_repeat_paused = false;
+                    self.auto_repeat_last_fired = Some(now);
+                }
+            }
+            // Still held but the pointer left the button: pause, but keep the
+            // press alive so that coming back resumes the repeat.
+            ButtonState::ClickedOutside => {
+                self.auto_repeat_paused = true;
+                return None;
+            }
+            // The button is not pressed anymore.
+            ButtonState::Normal | ButtonState::Hovered => {
+                self.stop_auto_repeat();
+                return None;
+            }
         }
 
         let delay = Duration::from_secs_f32(self.auto_repeat_delay.max(0.0));
-        let interval = Duration::from_secs_f32(self.auto_repeat_interval.max(0.001));
         let first_due = pressed_at + delay;
         if now < first_due {
             return Some(first_due);
@@ -198,6 +217,7 @@ impl Button {
     pub fn stop_auto_repeat(&mut self) {
         self.auto_repeat_pressed_at = None;
         self.auto_repeat_last_fired = None;
+        self.auto_repeat_paused = false;
     }
 }
 
@@ -287,6 +307,7 @@ impl Widget for Button {
             } if ctx.bounds.contains(*position) => {
                 ctx.request_focus();
                 if self.auto_repeat {
+                    self.auto_repeat_paused = false;
                     self.auto_repeat_pressed_at = Some(Instant::now());
                     self.auto_repeat_last_fired = Some(Instant::now());
                     self.fire(ctx);
@@ -304,6 +325,15 @@ impl Widget for Button {
                     self.fire(ctx);
                     ctx.invalidate();
                 }
+                true
+            }
+            // Released while the pointer was outside the button: the press is
+            // over, so the repeat must not resume when the pointer comes back.
+            Event::MouseUp {
+                position,
+                button: MouseButton::Left,
+            } if self.auto_repeat && ctx.state.interaction == ButtonState::ClickedOutside => {
+                self.stop_auto_repeat();
                 true
             }
             Event::KeyDown {

@@ -843,3 +843,118 @@ fn listview_selected_item_has_visible_frame() {
 
     assert_eq!(list_handle.with(|l: &ListView| l.selected_index()), Some(2));
 }
+
+#[test]
+fn button_auto_repeat_fires_repeatedly_while_held() {
+    use std::time::{Duration, Instant};
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let count = Rc::new(Cell::new(0));
+    let callback_count = count.clone();
+    ui.add_child(
+        &root,
+        Button::new("Repeat")
+            .auto_repeat(true)
+            .auto_repeat_delay(0.1)
+            .auto_repeat_interval(0.1)
+            .on_click(move |_ctx| {
+                callback_count.set(callback_count.get() + 1);
+            }),
+    );
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    let bounds = root.children()[0].bounds();
+    ui.dispatch(Event::MouseDown {
+        position: bounds.center(),
+        button: MouseButton::Left,
+    });
+    // fires once on press
+    assert_eq!(count.get(), 1);
+
+    let base = Instant::now();
+    // before delay: no repeat
+    let deadline = ui.process_auto_repeat(base + Duration::from_millis(50));
+    assert!(deadline.is_some());
+    assert_eq!(count.get(), 1);
+
+    // after delay: repeats
+    let deadline = ui.process_auto_repeat(base + Duration::from_millis(250));
+    assert!(deadline.is_some());
+    assert!(count.get() > 1, "expected repeats, got {}", count.get());
+
+    ui.dispatch(Event::MouseUp {
+        position: bounds.center(),
+        button: MouseButton::Left,
+    });
+    let after_release = count.get();
+
+    // no more repeats after release
+    ui.process_auto_repeat(base + Duration::from_secs(5));
+    assert_eq!(count.get(), after_release);
+}
+
+#[test]
+fn button_auto_repeat_resumes_when_pointer_comes_back() {
+    use std::time::{Duration, Instant};
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let count = Rc::new(Cell::new(0));
+    let callback_count = count.clone();
+    ui.add_child(
+        &root,
+        Button::new("Repeat")
+            .auto_repeat(true)
+            .auto_repeat_delay(0.1)
+            .auto_repeat_interval(0.1)
+            .on_click(move |_ctx| {
+                callback_count.set(callback_count.get() + 1);
+            }),
+    );
+    ui.set_size(Size::new(200.0, 200.0));
+    ui.layout();
+
+    let bounds = root.children()[0].bounds();
+    let center = bounds.center();
+    let outside = Point::new(center.x, bounds.bottom() + 20.0);
+
+    ui.dispatch(Event::MouseDown {
+        position: center,
+        button: MouseButton::Left,
+    });
+    assert_eq!(count.get(), 1);
+
+    let base = Instant::now();
+    ui.process_auto_repeat(base + Duration::from_millis(250));
+    let after_repeat = count.get();
+    assert!(after_repeat > 1, "expected repeats, got {after_repeat}");
+
+    // pointer leaves the button while it is held down: repeating pauses
+    ui.dispatch(Event::CursorMoved { position: outside });
+    let paused = ui.process_auto_repeat(base + Duration::from_millis(500));
+    assert!(paused.is_none());
+    assert_eq!(count.get(), after_repeat);
+
+    // pointer comes back while the button is still held: repeating resumes
+    ui.dispatch(Event::CursorMoved { position: center });
+    let deadline = ui.process_auto_repeat(base + Duration::from_millis(600));
+    assert!(deadline.is_some());
+    ui.process_auto_repeat(base + Duration::from_millis(800));
+    assert!(
+        count.get() > after_repeat,
+        "expected repeat after re-entering, got {}",
+        count.get()
+    );
+
+    // releasing outside ends the repeat for good
+    ui.dispatch(Event::MouseUp {
+        position: outside,
+        button: MouseButton::Left,
+    });
+    let after_release = count.get();
+    ui.dispatch(Event::CursorMoved { position: center });
+    ui.process_auto_repeat(base + Duration::from_secs(5));
+    assert_eq!(count.get(), after_release);
+}
