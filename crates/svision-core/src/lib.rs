@@ -51,8 +51,8 @@ pub use widget::{
 };
 pub use widgets::{
     Align, Button, Checkbox, Column, ComboBox, CrossAlign, HBoxLayout, Input, Label, ListView,
-    Orientation, RadioButton, RadioButtonGroup, Row, ScrollBar, Spacer, TextAlign, VBoxLayout,
-    checkbox, radiobutton,
+    Orientation, RadioButton, RadioButtonGroup, Row, ScrollBar, Spacer, Stack, TAB_HEIGHT, TabBar,
+    TabWidget, TextAlign, VBoxLayout, checkbox, radiobutton,
 };
 
 /// Implements the `Any` escape hatches required by [`Widget`].
@@ -79,8 +79,8 @@ pub mod prelude {
         ComboBox, CrossAlign, Event, EventCtx, FontSpec, FrameKind, GraphicsBackend, HBoxLayout,
         Input, Insets, Key, Label, ListView, MeasureCtx, Modifiers, MouseButton, Orientation,
         PaintCtx, Painter, Palette, Point, RadioButton, RadioButtonGroup, Rect, Row, ScrollBar,
-        Size, SizePolicy, SizePolicy2D, Spacer, TextAlign, TextEngine, TextRasterizer, Theme,
-        TypedWidgetHandle, Ui, VBoxLayout, Widget, WidgetHandle, WidgetId, WidgetState, checkbox,
-        impl_widget_any, radiobutton,
+        Size, SizePolicy, SizePolicy2D, Spacer, Stack, TAB_HEIGHT, TabBar, TabWidget, TextAlign,
+        TextEngine, TextRasterizer, Theme, TypedWidgetHandle, Ui, VBoxLayout, Widget, WidgetHandle,
+        WidgetId, WidgetState, checkbox, impl_widget_any, radiobutton,
     };
 }

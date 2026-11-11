@@ -4,17 +4,21 @@ use crate::{
     widget::{EventCtx, MeasureCtx, PaintCtx, Widget},
 };
 
+type TextChangeHandler = Box<dyn FnMut(&str, &mut EventCtx)>;
+
 /// A single-line text input field.
 ///
 /// The input accepts text input, moves the cursor with the arrow keys, and
 /// supports backspace/delete. It requests focus on click and draws a caret
-/// when focused.
-#[derive(Clone, Debug)]
+/// when focused. While the field is empty it shows a muted placeholder, and
+/// [`on_change`](Self::on_change) reports every edit.
 pub struct Input {
     text: String,
     cursor: usize,
+    placeholder: Option<String>,
     font_size: Option<f32>,
     readonly: bool,
+    on_change: Option<TextChangeHandler>,
     measured: Size,
 }
 
@@ -24,8 +28,10 @@ impl Input {
         Self {
             text: String::new(),
             cursor: 0,
+            placeholder: None,
             font_size: None,
             readonly: false,
+            on_change: None,
             measured: Size::ZERO,
         }
     }
@@ -37,8 +43,10 @@ impl Input {
         Self {
             text,
             cursor,
+            placeholder: None,
             font_size: None,
             readonly: false,
+            on_change: None,
             measured: Size::ZERO,
         }
     }
@@ -52,6 +60,39 @@ impl Input {
     pub fn set_text(&mut self, text: impl Into<String>) {
         self.text = text.into();
         self.cursor = self.text.len();
+    }
+
+    /// Shows `text` in a muted colour while the field is empty.
+    pub fn placeholder(mut self, text: impl Into<String>) -> Self {
+        self.placeholder = Some(text.into());
+        self
+    }
+
+    /// The placeholder shown while the field is empty.
+    pub fn placeholder_text(&self) -> Option<&str> {
+        self.placeholder.as_deref()
+    }
+
+    /// Sets the placeholder shown while the field is empty.
+    pub fn set_placeholder(&mut self, text: impl Into<String>) {
+        self.placeholder = Some(text.into());
+    }
+
+    /// Callback fired whenever the text changes.
+    pub fn on_change<F>(mut self, callback: F) -> Self
+    where
+        F: FnMut(&str, &mut EventCtx) + 'static,
+    {
+        self.on_change = Some(Box::new(callback));
+        self
+    }
+
+    /// Replaces the change callback.
+    pub fn set_on_change<F>(&mut self, callback: F)
+    where
+        F: FnMut(&str, &mut EventCtx) + 'static,
+    {
+        self.on_change = Some(Box::new(callback));
     }
 
     /// Returns the cursor position (byte index into `text`).
@@ -140,6 +181,13 @@ impl Input {
         }
         best
     }
+
+    /// Reports the current text to the change callback.
+    fn notify_change(&mut self, ctx: &mut EventCtx) {
+        if let Some(callback) = self.on_change.as_mut() {
+            callback(&self.text, ctx);
+        }
+    }
 }
 
 impl Widget for Input {
@@ -184,13 +232,26 @@ impl Widget for Input {
             theme.text_muted()
         };
 
-        let size = ctx.ui.measure_text(&self.text, &font);
+        // While the field is empty the placeholder is shown in a muted colour.
+        let is_empty = self.text.is_empty();
+        let shown = if is_empty {
+            self.placeholder.as_deref().unwrap_or("")
+        } else {
+            &self.text
+        };
+        let shown_color = if is_empty {
+            theme.text_muted()
+        } else {
+            text_color
+        };
+
+        let size = ctx.ui.measure_text(shown, &font);
         let text_x = inner.x + 4.0;
         let text_y = inner.y + (inner.height - size.height) * 0.5;
 
         ctx.rasterizer.push_clip(inner);
         ctx.rasterizer
-            .draw_text(&self.text, Point::new(text_x, text_y), &font, text_color);
+            .draw_text(shown, Point::new(text_x, text_y), &font, shown_color);
         ctx.rasterizer.pop_clip();
 
         if ctx.state.focused && ctx.state.window_active {
@@ -226,10 +287,12 @@ impl Widget for Input {
             Event::TextInput(s) if !self.readonly => {
                 self.text.insert_str(self.cursor, s);
                 self.cursor += s.len();
+                self.notify_change(ctx);
                 ctx.invalidate();
                 true
             }
             Event::KeyDown { key, modifiers } if !self.readonly => {
+                let before = self.text.len();
                 let handled = match key {
                     Key::Backspace => {
                         if self.cursor > 0 {
@@ -283,6 +346,9 @@ impl Widget for Input {
                     _ => false,
                 };
                 if handled {
+                    if self.text.len() != before {
+                        self.notify_change(ctx);
+                    }
                     ctx.invalidate();
                 }
                 handled

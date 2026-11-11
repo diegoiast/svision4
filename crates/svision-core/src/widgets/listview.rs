@@ -14,6 +14,8 @@ type SelectionHandler = Box<dyn FnMut(Option<usize>)>;
 
 pub struct ListView {
     items: Vec<String>,
+    filter: String,
+    visible: Vec<usize>,
     selected: Option<usize>,
     hovered: Option<usize>,
     scroll_offset: f32,
@@ -30,11 +32,13 @@ impl ListView {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        Self {
+        let mut list = Self {
             items: items
                 .into_iter()
                 .map(|item| item.as_ref().to_string())
                 .collect(),
+            filter: String::new(),
+            visible: Vec::new(),
             selected: None,
             hovered: None,
             scroll_offset: 0.0,
@@ -43,7 +47,9 @@ impl ListView {
             alternating: false,
             on_selection_changed: None,
             scrollbar: RefCell::new(ScrollBar::vertical()),
-        }
+        };
+        list.apply_filter();
+        list
     }
 
     pub fn items<I, S>(mut self, items: I) -> Self
@@ -51,13 +57,7 @@ impl ListView {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        self.items = items
-            .into_iter()
-            .map(|item| item.as_ref().to_string())
-            .collect();
-        if self.selected.is_some_and(|index| index >= self.items.len()) {
-            self.selected = None;
-        }
+        self.set_items(items);
         self
     }
 
@@ -70,21 +70,69 @@ impl ListView {
             .into_iter()
             .map(|item| item.as_ref().to_string())
             .collect();
-        if self.selected.is_some_and(|index| index >= self.items.len()) {
-            self.selected = None;
-        }
+        self.apply_filter();
         self.scroll_offset = 0.0;
     }
 
+    /// Shows only the items containing `query`.
+    ///
+    /// The match is case-insensitive; an empty query shows every item.
+    pub fn set_filter(&mut self, query: impl Into<String>) {
+        self.filter = query.into();
+        self.apply_filter();
+        self.scroll_offset = 0.0;
+    }
+
+    /// The current filter text.
+    pub fn filter(&self) -> &str {
+        &self.filter
+    }
+
+    /// Clears the filter and shows every item again.
+    pub fn clear_filter(&mut self) {
+        self.set_filter(String::new());
+    }
+
+    /// Recomputes the visible items from the current filter.
+    fn apply_filter(&mut self) {
+        let needle = self.filter.trim().to_lowercase();
+        self.visible = if needle.is_empty() {
+            (0..self.items.len()).collect()
+        } else {
+            self.items
+                .iter()
+                .enumerate()
+                .filter(|(_, item)| item.to_lowercase().contains(&needle))
+                .map(|(index, _)| index)
+                .collect()
+        };
+        if self.selected.is_some_and(|index| index >= self.visible.len()) {
+            self.selected = None;
+        }
+    }
+
     pub fn selected(mut self, index: usize) -> Self {
-        if index < self.items.len() {
+        if index < self.visible.len() {
             self.selected = Some(index);
         }
         self
     }
 
+    /// The items currently shown in the list.
+    pub fn items_list(&self) -> &[String] {
+        &self.items
+    }
+
+    /// The items matching the current filter, in display order.
+    pub fn visible_items(&self) -> Vec<String> {
+        self.visible
+            .iter()
+            .filter_map(|index| self.items.get(*index).cloned())
+            .collect()
+    }
+
     pub fn selected_index_option(mut self, index: Option<usize>) -> Self {
-        if index.is_some_and(|value| value >= self.items.len()) {
+        if index.is_some_and(|value| value >= self.visible.len()) {
             return self;
         }
         self.selected = index;
@@ -92,7 +140,7 @@ impl ListView {
     }
 
     pub fn set_selected(&mut self, index: Option<usize>) {
-        if index.is_some_and(|value| value >= self.items.len()) {
+        if index.is_some_and(|value| value >= self.visible.len()) {
             return;
         }
         self.selected = index;
@@ -158,11 +206,11 @@ impl ListView {
     }
 
     fn max_scroll_offset(&self) -> f32 {
-        (self.items.len() as f32 * ITEM_HEIGHT - self.viewport_height).max(0.0)
+        (self.visible.len() as f32 * ITEM_HEIGHT - self.viewport_height).max(0.0)
     }
 
     fn content_height(&self) -> f32 {
-        self.items.len() as f32 * ITEM_HEIGHT
+        self.visible.len() as f32 * ITEM_HEIGHT
     }
 
     fn is_scrollable(&self) -> bool {
@@ -210,7 +258,7 @@ impl ListView {
             return None;
         }
         let index = ((position.y - bounds.y + self.scroll_offset) / ITEM_HEIGHT).floor() as usize;
-        if index < self.items.len() {
+        if index < self.visible.len() {
             Some(index)
         } else {
             None
@@ -230,7 +278,7 @@ impl ListView {
     }
 
     fn select(&mut self, index: usize, ctx: &mut EventCtx) {
-        if index >= self.items.len() {
+        if index >= self.visible.len() {
             return;
         }
         self.selected = Some(index);
@@ -252,8 +300,8 @@ impl Widget for ListView {
         let theme = ctx.theme();
         let font = crate::FontSpec::new(theme.font_size());
         let mut max_text_width = 0.0f32;
-        for item in &self.items {
-            let size = ctx.measure_text(item, &font);
+        for index in &self.visible {
+            let size = ctx.measure_text(&self.items[*index], &font);
             max_text_width = max_text_width.max(size.width);
         }
         Size::new(
@@ -276,8 +324,8 @@ impl Widget for ListView {
         let theme = ctx.theme();
         let font = crate::FontSpec::new(theme.font_size());
         let mut max_text_width: f32 = 0.0;
-        for item in &self.items {
-            let size = ctx.measure_text(item, &font);
+        for index in &self.visible {
+            let size = ctx.measure_text(&self.items[*index], &font);
             max_text_width = max_text_width.max(size.width);
         }
 
@@ -321,7 +369,7 @@ impl Widget for ListView {
 
         let first = (self.scroll_offset / ITEM_HEIGHT).floor() as usize;
         let last = (((self.scroll_offset + bounds.height) / ITEM_HEIGHT).ceil() as usize)
-            .min(self.items.len());
+            .min(self.visible.len());
         for index in first..last {
             let item_rect = self.item_rect(bounds, index);
             if item_rect.bottom() < bounds.y || item_rect.y > bounds.bottom() {
@@ -360,7 +408,7 @@ impl Widget for ListView {
             let font = crate::FontSpec::new(theme.font_size());
             let text_y = item_rect.y + (item_rect.height - theme.font_size() * 1.25) * 0.5;
             ctx.rasterizer.draw_text(
-                &self.items[index],
+                &self.items[self.visible[index]],
                 crate::Point::new(item_rect.x + 12.0, text_y),
                 &font,
                 text_color,
@@ -503,7 +551,7 @@ impl Widget for ListView {
                             self.select(index - 1, ctx);
                             self.scroll_to(index - 1);
                         }
-                    } else if !self.items.is_empty() {
+                    } else if !self.visible.is_empty() {
                         self.select(0, ctx);
                         self.scroll_to(0);
                     }
@@ -511,34 +559,35 @@ impl Widget for ListView {
                 }
                 Key::Down => {
                     if let Some(index) = self.selected {
-                        if index + 1 < self.items.len() {
+                        if index + 1 < self.visible.len() {
                             self.select(index + 1, ctx);
                             self.scroll_to(index + 1);
                         }
-                    } else if !self.items.is_empty() {
+                    } else if !self.visible.is_empty() {
                         self.select(0, ctx);
                         self.scroll_to(0);
                     }
                     true
                 }
                 Key::Home => {
-                    if !self.items.is_empty() {
+                    if !self.visible.is_empty() {
                         self.select(0, ctx);
                         self.scroll_to(0);
                     }
                     true
                 }
                 Key::End => {
-                    if !self.items.is_empty() {
-                        self.select(self.items.len() - 1, ctx);
-                        self.scroll_to(self.items.len() - 1);
+                    if !self.visible.is_empty() {
+                        let last = self.visible.len() - 1;
+                        self.select(last, ctx);
+                        self.scroll_to(last);
                     }
                     true
                 }
                 Key::PageUp => {
                     let page = (self.viewport_height / ITEM_HEIGHT).max(1.0) as usize;
                     let index = self.selected.unwrap_or(0).saturating_sub(page);
-                    if !self.items.is_empty() {
+                    if !self.visible.is_empty() {
                         self.select(index, ctx);
                         self.scroll_to(index);
                     }
@@ -546,9 +595,9 @@ impl Widget for ListView {
                 }
                 Key::PageDown => {
                     let page = (self.viewport_height / ITEM_HEIGHT).max(1.0) as usize;
-                    let index =
-                        (self.selected.unwrap_or(0) + page).min(self.items.len().saturating_sub(1));
-                    if !self.items.is_empty() {
+                    let index = (self.selected.unwrap_or(0) + page)
+                        .min(self.visible.len().saturating_sub(1));
+                    if !self.visible.is_empty() {
                         self.select(index, ctx);
                         self.scroll_to(index);
                     }

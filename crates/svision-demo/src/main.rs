@@ -44,8 +44,11 @@ fn run_screenshot(path: &str) -> Result<(), Box<dyn Error>> {
     ui.layout();
 
     let root = ui.root().expect("root");
-    let card = root.children()[3].clone();
-    let buttons = card.children()[2].clone();
+    // The buttons live in a card on the tab widget's first page. Find the row by
+    // looking for the "Increment" button instead of hard-coding an index.
+    let page = root.children()[0].clone();
+    let increment = find_button(&page, "Increment").expect("increment button");
+    let buttons = increment.parent().expect("button row");
     let button_count = buttons.child_count();
 
     let mut rasterizer = SoftRasterizer::new();
@@ -79,8 +82,30 @@ fn run_screenshot(path: &str) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Depth-first search for a button with the given label.
+fn find_button(parent: &WidgetHandle, label: &str) -> Option<WidgetHandle> {
+    for child in parent.children() {
+        let is_match = child
+            .with_concrete::<Button, _>(|button| button.text() == label)
+            .unwrap_or(false);
+        if is_match {
+            return Some(child);
+        }
+        if let Some(found) = find_button(&child, label) {
+            return Some(found);
+        }
+    }
+    None
+}
+
 fn build(ui: &Ui) {
-    let root = ui.set_root(VBoxLayout::new());
+    // The window is a tab widget with two tabs: the counter on the first page
+    // and the Beatles browser on the second.
+    let tabs = ui
+        .set_root(TabWidget::new(["Main", "Beatles"]))
+        .cast::<TabWidget>()
+        .expect("root tab widget");
+    let root = ui.add_child(&tabs.handle(), VBoxLayout::new());
 
     ui.add_child(&root, Label::new("svision4").font_size(30.0).bold());
     ui.add_child(&root, Label::new("SVision4 ui toolkit").muted());
@@ -195,10 +220,12 @@ fn build(ui: &Ui) {
         }),
     );
 
-    ui.add_child(&root, Label::new("Beatles album").muted().font_size(14.0));
+    // Beatles tab: the album picker and the song filter.
+    let beatles = ui.add_child(&tabs.handle(), VBoxLayout::new());
+    ui.add_child(&beatles, Label::new("Beatles album").muted().font_size(14.0));
     let combo_handle = ui
         .add_child(
-            &root,
+            &beatles,
             ComboBox::new(beatles::ALBUMS)
                 .selected(0)
                 .placeholder("Choose a Beatles album"),
@@ -206,12 +233,18 @@ fn build(ui: &Ui) {
         .cast::<ComboBox>()
         .expect("combo box");
 
-    ui.add_child(&root, Label::new("Search songs").muted().font_size(14.0));
-    let _search_input = ui.add_child(&root, Input::with_text(""));
+    ui.add_child(&beatles, Label::new("Search songs").muted().font_size(14.0));
+    let search_handle = ui
+        .add_child(
+            &beatles,
+            Input::with_text("").placeholder("Type to filter songs"),
+        )
+        .cast::<Input>()
+        .expect("search input");
 
     let list_handle = ui
         .add_child(
-            &root,
+            &beatles,
             ListView::new(beatles::SONGS[0])
                 .min_width(260.0)
                 .alternating(true),
@@ -219,14 +252,35 @@ fn build(ui: &Ui) {
         .cast::<ListView>()
         .expect("list view");
 
+    // The search box filters the songs of the selected album. Both controls
+    // share the album and the filter text, so picking another album keeps the
+    // filter applied.
+    let album = Rc::new(Cell::new(0usize));
+    let query = Rc::new(std::cell::RefCell::new(String::new()));
+
+    let album_for_combo = album.clone();
+    let query_for_combo = query.clone();
     let list_for_combo = list_handle.clone();
     combo_handle.edit(|combo: &mut ComboBox| {
         combo.set_on_change(move |index, _ctx| {
-            if let Some(songs) = beatles::SONGS.get(index).copied() {
-                list_for_combo.edit(|list: &mut ListView| {
-                    list.set_items(songs);
-                });
-            }
+            album_for_combo.set(index);
+            let songs = beatles::SONGS.get(index).copied().unwrap_or(&[]);
+            list_for_combo.edit(|list: &mut ListView| {
+                // The filter is kept when the album changes.
+                list.set_items(songs);
+                list.set_filter(query_for_combo.borrow().as_str());
+            });
+        });
+    });
+
+    let query_for_input = query.clone();
+    let list_for_input = list_handle.clone();
+    search_handle.edit(|input: &mut Input| {
+        input.set_on_change(move |text, _ctx| {
+            *query_for_input.borrow_mut() = text.to_string();
+            list_for_input.edit(|list: &mut ListView| {
+                list.set_filter(text);
+            });
         });
     });
 

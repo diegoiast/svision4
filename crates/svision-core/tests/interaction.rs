@@ -958,3 +958,316 @@ fn button_auto_repeat_resumes_when_pointer_comes_back() {
     ui.process_auto_repeat(base + Duration::from_secs(5));
     assert_eq!(count.get(), after_release);
 }
+
+#[test]
+fn input_on_change_fires_when_text_is_edited() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let seen = Rc::new(std::cell::RefCell::new(String::new()));
+    let seen_cb = seen.clone();
+    let input = ui
+        .add_child(
+            &root,
+            Input::with_text("").on_change(move |text, _ctx| {
+                *seen_cb.borrow_mut() = text.to_string();
+            }),
+        )
+        .cast::<Input>()
+        .expect("input");
+    ui.layout();
+
+    let bounds = input.bounds();
+    click(&ui, bounds.center());
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Character('h'),
+        modifiers: Modifiers::default(),
+    });
+    ui.dispatch(Event::KeyDown {
+        key: Key::Character('i'),
+        modifiers: Modifiers::default(),
+    });
+    assert_eq!(seen.borrow().as_str(), "hi");
+    assert_eq!(input.with(|input: &Input| input.text().to_string()), "hi");
+
+    // A cursor move must not report a change.
+    ui.dispatch(Event::KeyDown {
+        key: Key::Left,
+        modifiers: Modifiers::default(),
+    });
+    assert_eq!(seen.borrow().as_str(), "hi");
+}
+
+#[test]
+fn input_shows_placeholder_while_empty() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let input = ui
+        .add_child(&root, Input::with_text("").placeholder("Search songs"))
+        .cast::<Input>()
+        .expect("input");
+    ui.layout();
+
+    assert_eq!(
+        input.with(|input: &Input| input.placeholder_text().map(str::to_string)),
+        Some("Search songs".to_string())
+    );
+    assert_eq!(input.with(|input: &Input| input.text().to_string()), "");
+}
+
+#[test]
+fn stack_shows_only_the_current_child() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let stack = ui.add_child(&root, Stack::new());
+    let first = ui.add_child(&stack, Label::new("first"));
+    let second = ui.add_child(&stack, Label::new("second"));
+    ui.layout();
+
+    assert!(first.is_visible());
+    assert!(!second.is_visible());
+
+    stack.edit(|stack: &mut Stack| stack.set_current(1));
+    ui.layout();
+
+    assert!(!first.is_visible());
+    assert!(second.is_visible());
+}
+
+#[test]
+fn stack_children_share_the_same_bounds() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let stack = ui.add_child(&root, Stack::new());
+    let first = ui.add_child(&stack, Label::new("first"));
+    let second = ui.add_child(&stack, Label::new("second"));
+    ui.layout();
+
+    let stack_bounds = stack.bounds();
+    assert_eq!(first.bounds(), stack_bounds);
+    assert_eq!(second.bounds(), stack_bounds);
+}
+
+#[test]
+fn tab_bar_selects_the_clicked_tab() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let bar = ui
+        .add_child(&root, TabBar::new(["One", "Two", "Three"]))
+        .cast::<TabBar>()
+        .expect("tab bar");
+    ui.layout();
+
+    assert_eq!(bar.with(|bar: &TabBar| bar.selected()), 0);
+
+    let second = bar.with(|bar: &TabBar| bar.tab_rect(1)).expect("second tab");
+    click(&ui, second.center());
+
+    assert_eq!(bar.with(|bar: &TabBar| bar.selected()), 1);
+}
+
+#[test]
+fn tab_bar_arrow_keys_wrap_around() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let bar = ui
+        .add_child(&root, TabBar::new(["One", "Two"]))
+        .cast::<TabBar>()
+        .expect("tab bar");
+    ui.layout();
+
+    ui.set_focus(Some(bar.id()));
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Left,
+        modifiers: Modifiers::default(),
+    });
+    assert_eq!(bar.with(|bar: &TabBar| bar.selected()), 1);
+
+    ui.dispatch(Event::KeyDown {
+        key: Key::Right,
+        modifiers: Modifiers::default(),
+    });
+    assert_eq!(bar.with(|bar: &TabBar| bar.selected()), 0);
+}
+
+#[test]
+fn tab_widget_switches_pages_when_a_tab_is_clicked() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let tabs = ui
+        .add_child(&root, TabWidget::new(["Songs", "Albums"]))
+        .cast::<TabWidget>()
+        .expect("tab widget");
+    let songs = ui.add_child(&tabs.handle(), Label::new("songs page"));
+    let albums = ui.add_child(&tabs.handle(), Label::new("albums page"));
+    ui.layout();
+
+    assert!(songs.is_visible());
+    assert!(!albums.is_visible());
+    assert_eq!(tabs.with(|tabs: &TabWidget| tabs.selected()), 0);
+
+    let second_tab = tabs.with(|tabs: &TabWidget| tabs.tab_rect(1)).expect("second tab");
+    click(&ui, second_tab.center());
+
+    assert_eq!(tabs.with(|tabs: &TabWidget| tabs.selected()), 1);
+    ui.layout();
+    assert!(!songs.is_visible());
+    assert!(albums.is_visible());
+}
+
+#[test]
+fn tab_widget_reports_tab_changes() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let selected = Rc::new(Cell::new(usize::MAX));
+    let callback_selected = selected.clone();
+    let tabs = ui
+        .add_child(
+            &root,
+            TabWidget::new(["Songs", "Albums"]).on_change(move |index, _ctx| {
+                callback_selected.set(index);
+            }),
+        )
+        .cast::<TabWidget>()
+        .expect("tab widget");
+    ui.add_child(&tabs.handle(), Label::new("songs page"));
+    ui.add_child(&tabs.handle(), Label::new("albums page"));
+    ui.layout();
+
+    let second_tab = tabs.with(|tabs: &TabWidget| tabs.tab_rect(1)).expect("second tab");
+    click(&ui, second_tab.center());
+
+    assert_eq!(selected.get(), 1);
+}
+
+#[test]
+fn tab_widget_with_more_tabs_than_pages_stays_consistent() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let tabs = ui
+        .add_child(&root, TabWidget::new(["One", "Two", "Three"]))
+        .cast::<TabWidget>()
+        .expect("tab widget");
+    let only = ui.add_child(&tabs.handle(), Label::new("only page"));
+    ui.layout();
+
+    let third = tabs.with(|tabs: &TabWidget| tabs.tab_rect(2)).expect("third tab");
+    click(&ui, third.center());
+    ui.layout();
+
+    assert!(only.is_visible());
+    assert_eq!(tabs.with(|tabs: &TabWidget| tabs.selected()), 0);
+}
+
+#[test]
+fn tab_widget_as_root_widget_measures_its_tabs() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    // The root widget is arranged without ever being measured, so the tab widget
+    // has to measure its tab titles itself.
+    let tabs = ui
+        .set_root(TabWidget::new(["Main", "Second"]))
+        .cast::<TabWidget>()
+        .expect("tab widget");
+    ui.add_child(&tabs.handle(), Label::new("content"));
+    ui.layout();
+
+    let tab = tabs.with(|tabs: &TabWidget| tabs.tab_rect(0)).expect("tab");
+    assert!(tab.width > 0.0, "tab should have a width");
+    assert!(tab.height > 0.0, "tab should have a height");
+}
+
+#[test]
+fn list_view_filter_is_case_insensitive() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let list = ui
+        .add_child(
+            &root,
+            ListView::new(["Love Me Do", "Please Please Me", "Help!"]),
+        )
+        .cast::<ListView>()
+        .expect("list");
+    ui.layout();
+
+    // Uppercase query matches a lowercase item.
+    list.edit(|list: &mut ListView| list.set_filter("LOVE"));
+    assert_eq!(
+        list.with(|list: &ListView| list.visible_items()),
+        vec!["Love Me Do".to_string()]
+    );
+
+    // Lowercase query matches a mixed-case item.
+    list.edit(|list: &mut ListView| list.set_filter("please"));
+    assert_eq!(
+        list.with(|list: &ListView| list.visible_items()),
+        vec!["Please Please Me".to_string()]
+    );
+
+    // Mixed case query matches too.
+    list.edit(|list: &mut ListView| list.set_filter("hElP"));
+    assert_eq!(
+        list.with(|list: &ListView| list.visible_items()),
+        vec!["Help!".to_string()]
+    );
+
+    // An empty filter shows everything again.
+    list.edit(|list: &mut ListView| list.clear_filter());
+    assert_eq!(
+        list.with(|list: &ListView| list.visible_items()),
+        vec![
+            "Love Me Do".to_string(),
+            "Please Please Me".to_string(),
+            "Help!".to_string()
+        ]
+    );
+}
+
+#[test]
+fn list_view_filter_survives_an_item_change() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let list = ui
+        .add_child(&root, ListView::new(["Love Me Do", "Help!"]))
+        .cast::<ListView>()
+        .expect("list");
+    ui.layout();
+
+    list.edit(|list: &mut ListView| list.set_filter("love"));
+    list.edit(|list: &mut ListView| list.set_items(["Love Me Do", "Help!", "Love For Sale"]));
+
+    assert_eq!(
+        list.with(|list: &ListView| list.visible_items()),
+        vec!["Love Me Do".to_string(), "Love For Sale".to_string()]
+    );
+}
+
+#[test]
+fn list_view_filter_matches_a_substring() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let list = ui
+        .add_child(&root, ListView::new(["I Saw Her Standing There", "Misery"]))
+        .cast::<ListView>()
+        .expect("list");
+    ui.layout();
+
+    list.edit(|list: &mut ListView| list.set_filter("standing"));
+    assert_eq!(
+        list.with(|list: &ListView| list.visible_items()),
+        vec!["I Saw Her Standing There".to_string()]
+    );
+}

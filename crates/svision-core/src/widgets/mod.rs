@@ -9,6 +9,9 @@ pub mod radiobutton;
 mod row;
 mod scrollbar;
 mod spacer;
+mod stack;
+mod tabbar;
+mod tabwidget;
 
 pub use button::Button;
 pub type HBoxLayout = Row;
@@ -24,6 +27,9 @@ pub use radiobutton::{RadioButton, RadioButtonGroup};
 pub use row::Row;
 pub use scrollbar::{Orientation, ScrollBar};
 pub use spacer::Spacer;
+pub use stack::Stack;
+pub use tabbar::{TAB_HEIGHT, TabBar};
+pub use tabwidget::TabWidget;
 
 /// Alignment along either axis.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
