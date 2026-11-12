@@ -238,7 +238,7 @@ impl Widget for Button {
     }
 
     fn paint(&self, ctx: &mut PaintCtx) {
-        let theme = ctx.theme;
+        let theme = ctx.theme.clone();
         let enabled = ctx.state.enabled;
         let checked = if self.toggle { self.checked } else { false };
 
@@ -277,7 +277,7 @@ impl Widget for Button {
             FrameKind::Normal
         };
         let is_focused = ctx.state.focused && ctx.state.window_active;
-        theme.frame(&mut *ctx.rasterizer, ctx.bounds, frame_kind, is_focused);
+        theme.draw_frame(&mut *ctx.rasterizer, ctx.bounds, frame_kind, is_focused);
 
         let text_color = if !enabled {
             theme.text_muted()

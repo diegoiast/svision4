@@ -174,16 +174,15 @@ impl Widget for TabWidget {
     }
 
     fn paint(&self, ctx: &mut PaintCtx) {
-        let theme = ctx.theme;
+        let theme = ctx.theme.clone();
         let content = self.content_rect(ctx.bounds);
-        ctx.rasterizer
-            .fill_round_rect(content, theme.radius(), theme.surface());
+        theme.draw_panel(ctx.rasterizer, content);
 
         let strip = self.strip_rect(ctx.bounds);
         let mut strip_ctx = PaintCtx {
             rasterizer: &mut *ctx.rasterizer,
             ui: ctx.ui,
-            theme: ctx.theme,
+            theme: ctx.theme.clone(),
             bounds: strip,
             state: ctx.state,
         };

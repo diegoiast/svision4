@@ -32,7 +32,7 @@ mod geometry;
 mod painter;
 mod text;
 mod theme;
-mod themes;
+pub mod themes;
 mod ui;
 mod widget;
 mod widgets;
@@ -44,7 +44,12 @@ pub use event::{Event, Key, Modifiers, MouseButton};
 pub use geometry::{Insets, Point, Rect, Size};
 pub use painter::Painter;
 pub use text::{ApproxTextEngine, FontSpec, TextEngine, TextRasterizer};
-pub use theme::{FrameKind, Palette, Theme};
+pub use theme::{
+    CheckboxSpec, FrameKind, Palette, RadioButtonSpec, TabSpec, Theme,
+};
+pub use themes::windows11::Windows11Theme;
+pub use themes::windows95::Windows95Theme;
+pub use themes::Style;
 pub use ui::{TypedWidgetHandle, Ui, WidgetHandle, WidgetId};
 pub use widget::{
     ArrangeCtx, EventCtx, MeasureCtx, PaintCtx, SizePolicy, SizePolicy2D, Widget, WidgetState,
@@ -75,12 +80,13 @@ macro_rules! impl_widget_any {
 /// Common imports.
 pub mod prelude {
     pub use crate::{
-        Align, ArrangeCtx, Button, ButtonState, ButtonStateHandler, Checkbox, Color, Column,
+        themes, Align, ArrangeCtx, Button, ButtonState, ButtonStateHandler, Checkbox, Color, Column,
         ComboBox, CrossAlign, Event, EventCtx, FontSpec, FrameKind, GraphicsBackend, HBoxLayout,
         Input, Insets, Key, Label, ListView, MeasureCtx, Modifiers, MouseButton, Orientation,
         PaintCtx, Painter, Palette, Point, RadioButton, RadioButtonGroup, Rect, Row, ScrollBar,
-        Size, SizePolicy, SizePolicy2D, Spacer, Stack, TAB_HEIGHT, TabBar, TabWidget, TextAlign,
-        TextEngine, TextRasterizer, Theme, TypedWidgetHandle, Ui, VBoxLayout, Widget, WidgetHandle,
-        WidgetId, WidgetState, checkbox, impl_widget_any, radiobutton,
+        Size, SizePolicy, SizePolicy2D, Spacer, Stack, Style, TAB_HEIGHT, TabBar, TabWidget,
+        TextAlign, TextEngine, TextRasterizer, Theme, TypedWidgetHandle, Ui, VBoxLayout, Widget,
+        WidgetHandle, WidgetId, WidgetState, Windows11Theme, Windows95Theme, checkbox,
+        impl_widget_any, radiobutton,
     };
 }

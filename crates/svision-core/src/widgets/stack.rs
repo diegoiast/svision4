@@ -91,11 +91,11 @@ impl Stack {
         self.background = Some(color);
     }
 
-    pub fn resolved_padding(&self, _theme: &Theme) -> Insets {
+    pub fn resolved_padding(&self, _theme: &dyn Theme) -> Insets {
         self.padding.unwrap_or(Insets::ZERO)
     }
 
-    pub fn resolved_margin(&self, theme: &Theme) -> Insets {
+    pub fn resolved_margin(&self, theme: &dyn Theme) -> Insets {
         self.margin.unwrap_or_else(|| Insets::all(theme.spacing()))
     }
 }
@@ -111,13 +111,13 @@ impl Widget for Stack {
         SizePolicy2D::new(SizePolicy::Expanding, SizePolicy::Expanding)
     }
 
-    fn margin(&self, theme: &Theme) -> Insets {
+    fn margin(&self, theme: &dyn Theme) -> Insets {
         self.resolved_margin(theme)
     }
 
     fn min_size(&mut self, ctx: &mut MeasureCtx, _available: Size) -> Size {
         let theme = ctx.theme();
-        let padding = self.resolved_padding(&theme);
+        let padding = self.resolved_padding(theme.as_ref());
         let mut width = 0.0f32;
         let mut height = 0.0f32;
         for child in ctx.children().to_vec() {
@@ -135,7 +135,7 @@ impl Widget for Stack {
 
     fn measure(&mut self, ctx: &mut MeasureCtx, available: Size) -> Size {
         let theme = ctx.theme();
-        let padding = self.resolved_padding(&theme);
+        let padding = self.resolved_padding(theme.as_ref());
         let content_width = if available.width.is_finite() {
             (available.width - padding.horizontal()).max(0.0)
         } else {
@@ -159,7 +159,7 @@ impl Widget for Stack {
 
     fn arrange(&mut self, ctx: &mut ArrangeCtx, bounds: Rect) {
         let theme = ctx.theme();
-        let padding = self.resolved_padding(&theme);
+        let padding = self.resolved_padding(theme.as_ref());
         let content = bounds.inset(padding);
         let children = ctx.children().to_vec();
         if children.is_empty() {

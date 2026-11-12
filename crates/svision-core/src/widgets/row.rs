@@ -98,15 +98,15 @@ impl Row {
         self.debug
     }
 
-    pub fn resolved_padding(&self, theme: &Theme) -> Insets {
+    pub fn resolved_padding(&self, theme: &dyn Theme) -> Insets {
         self.padding.unwrap_or_else(|| Insets::all(theme.padding()))
     }
 
-    pub fn resolved_spacing(&self, theme: &Theme) -> f32 {
+    pub fn resolved_spacing(&self, theme: &dyn Theme) -> f32 {
         self.spacing.unwrap_or(theme.spacing())
     }
 
-    pub fn resolved_margin(&self, theme: &Theme) -> Insets {
+    pub fn resolved_margin(&self, theme: &dyn Theme) -> Insets {
         self.margin.unwrap_or_else(|| Insets::all(theme.spacing()))
     }
 }
@@ -120,8 +120,8 @@ impl Default for Row {
 impl Widget for Row {
     fn min_size(&mut self, ctx: &mut MeasureCtx, _available: Size) -> Size {
         let theme = ctx.theme();
-        let padding = self.resolved_padding(&theme);
-        let spacing = self.resolved_spacing(&theme);
+        let padding = self.resolved_padding(theme.as_ref());
+        let spacing = self.resolved_spacing(theme.as_ref());
         let mut width = padding.horizontal();
         let mut height = 0.0f32;
         let count = ctx.children().len();
@@ -129,7 +129,7 @@ impl Widget for Row {
             let child_min = ctx
                 .ui
                 .min_size_node(child, Size::new(f32::INFINITY, f32::INFINITY));
-            let child_margin = ctx.ui.margin_node(child, &theme);
+            let child_margin = ctx.ui.margin_node(child, theme.as_ref());
             width += child_min.width + child_margin.horizontal();
             height = height.max(child_min.height + child_margin.vertical());
         }
@@ -143,14 +143,14 @@ impl Widget for Row {
         SizePolicy2D::default()
     }
 
-    fn margin(&self, theme: &Theme) -> Insets {
+    fn margin(&self, theme: &dyn Theme) -> Insets {
         self.resolved_margin(theme)
     }
 
     fn measure(&mut self, ctx: &mut MeasureCtx, available: Size) -> Size {
         let theme = ctx.theme();
-        let padding = self.resolved_padding(&theme);
-        let spacing = self.resolved_spacing(&theme);
+        let padding = self.resolved_padding(theme.as_ref());
+        let spacing = self.resolved_spacing(theme.as_ref());
         let content_height = if available.height.is_finite() {
             (available.height - padding.vertical()).max(0.0)
         } else {
@@ -162,7 +162,7 @@ impl Widget for Row {
         let count = ctx.children().len();
 
         for child in ctx.children().to_vec() {
-            let child_margin = ctx.ui.margin_node(child, &theme);
+            let child_margin = ctx.ui.margin_node(child, theme.as_ref());
             let child_available_height = if content_height.is_finite() {
                 (content_height - child_margin.vertical()).max(0.0)
             } else {
@@ -188,8 +188,8 @@ impl Widget for Row {
 
     fn arrange(&mut self, ctx: &mut ArrangeCtx, bounds: Rect) {
         let theme = ctx.theme();
-        let padding = self.resolved_padding(&theme);
-        let spacing = self.resolved_spacing(&theme);
+        let padding = self.resolved_padding(theme.as_ref());
+        let spacing = self.resolved_spacing(theme.as_ref());
         let content = bounds.inset(padding);
         let children = ctx.children().to_vec();
         let count = children.len();
@@ -202,7 +202,7 @@ impl Widget for Row {
         let mut policies = Vec::with_capacity(count);
         let mut margins = Vec::with_capacity(count);
         for child in &children {
-            let child_margin = ctx.ui.margin_node(*child, &theme);
+            let child_margin = ctx.ui.margin_node(*child, theme.as_ref());
             let child_available_height = (content.height - child_margin.vertical()).max(0.0);
             let min_size = ctx
                 .ui

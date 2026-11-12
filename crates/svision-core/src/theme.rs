@@ -1,8 +1,8 @@
-use crate::{Color, Point, Rect};
+use crate::{Color, FontSpec, Point, Rect, Size};
 
+use crate::button_state::ButtonState;
 use crate::painter::Painter;
-
-use crate::themes;
+use crate::text::TextRasterizer;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Palette {
@@ -30,7 +30,7 @@ pub struct Palette {
 ///
 /// Backends may use these or ignore them; widgets read the active theme through
 /// their paint/measure contexts.
-/// Style of a control frame drawn by [`Theme::frame`].
+/// Style of a control frame drawn by [`Theme::draw_frame`].
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum FrameKind {
@@ -40,201 +40,230 @@ pub enum FrameKind {
     Default,
 }
 
-#[derive(Clone, Debug)]
-pub struct Theme {
-    pub palette: Palette,
-    pub radius: f32,
+/// A tab of a tab strip, as drawn by [`Theme::draw_tabs`].
+#[derive(Clone, Copy, Debug)]
+pub struct TabSpec<'a> {
+    /// The label of the tab.
+    pub title: &'a str,
+    /// The measured size of the label.
+    pub size: Size,
+    /// The rectangle the tab occupies in the strip.
+    pub rect: Rect,
 }
 
-impl Default for Theme {
-    fn default() -> Self {
-        Self::light()
-    }
+/// A check box, as drawn by [`Theme::draw_checkbox`].
+#[derive(Clone, Copy, Debug)]
+pub struct CheckboxSpec<'a> {
+    /// The label drawn next to the box.
+    pub label: &'a str,
+    /// The measured size of the label.
+    pub label_size: Size,
+    /// Whether the box is checked.
+    pub checked: bool,
+    /// Whether the control accepts input.
+    pub enabled: bool,
+    /// The current pointer interaction state.
+    pub interaction: ButtonState,
+    /// Whether the control has keyboard focus.
+    pub focused: bool,
 }
 
-impl Theme {
-    pub fn dark() -> Self {
-        themes::dark::DarkTheme::dark_theme()
-    }
+/// A radio button, as drawn by [`Theme::draw_radio_button`].
+#[derive(Clone, Copy, Debug)]
+pub struct RadioButtonSpec<'a> {
+    /// The label drawn next to the mark.
+    pub label: &'a str,
+    /// The measured size of the label.
+    pub label_size: Size,
+    /// Whether the button is selected.
+    pub checked: bool,
+    /// Whether the control accepts input.
+    pub enabled: bool,
+    /// The current pointer interaction state.
+    pub interaction: ButtonState,
+    /// Whether the control has keyboard focus.
+    pub focused: bool,
+}
 
-    pub fn light() -> Self {
-        themes::light::LightTheme::light_theme()
-    }
+/// The look of the user interface.
+///
+/// This is the base of the theme hierarchy. It declares how each control is
+/// drawn; the concrete implementations live in the [`themes`](crate::themes)
+/// module and are responsible for everything that differs between operating
+/// systems — the shape of a check mark, whether a frame is raised or flat, and
+/// so on.
+///
+/// Colours and metrics have a sensible default derived from the palette, so an
+/// implementation only has to provide the parts that are actually special.
+pub trait Theme {
+    /// The colours of this theme.
+    fn palette(&self) -> Palette;
 
-    pub fn windows95() -> Self {
-        themes::windows95::Windows95Theme::dark_theme()
-    }
-
-    pub fn windows95_light() -> Self {
-        themes::windows95::Windows95Theme::light_theme()
-    }
-
-    pub fn windows11() -> Self {
-        themes::windows11::Windows11Theme::dark_theme()
-    }
-
-    pub fn palette(&self) -> Palette {
-        self.palette
-    }
-
-    pub fn background(&self) -> Color {
-        self.palette.background
-    }
-
-    pub fn surface(&self) -> Color {
-        self.palette.surface
-    }
+    /// The corner radius used by the controls of this theme.
+    ///
+    /// A radius of `0` means square corners.
+    fn radius(&self) -> f32;
 
     /// Draws the frame (border) of a control.
-    ///
-    /// Windows themes draw a single line; Windows 95 draws a double frame,
-    /// and a triple frame for default buttons.
-    pub fn frame(&self, painter: &mut dyn Painter, rect: Rect, kind: FrameKind, focused: bool) {
-        if rect.width <= 0.0 || rect.height <= 0.0 {
-            return;
-        }
-        let width = 1.0;
-        if self.radius() == 0.0 {
-            // Windows 95: raised border — top/left edges are light (highlight),
-            // bottom/right edges are dark (shadow). Double frame for normal
-            // buttons, triple frame for default buttons.
-            let layers = match kind {
-                FrameKind::Normal => 2,
-                FrameKind::Default => 3,
-            };
-            for i in 0..layers {
-                let inset = i as f32 * width;
-                let r = rect.inset_all(inset);
-                // Default buttons draw their outermost frame in black.
-                let black = kind == FrameKind::Default && i == 0;
-                let color = if black {
-                    Color::BLACK
-                } else {
-                    self.palette.frame_highlight
-                };
-                painter.draw_line(
-                    Point::new(r.x, r.y),
-                    Point::new(r.right(), r.y),
-                    color,
-                    width,
-                );
-                painter.draw_line(
-                    Point::new(r.x, r.y),
-                    Point::new(r.x, r.bottom()),
-                    color,
-                    width,
-                );
-                painter.draw_line(
-                    Point::new(r.x, r.bottom()),
-                    Point::new(r.right(), r.bottom()),
-                    if black {
-                        Color::BLACK
-                    } else {
-                        self.palette.frame_shadow
-                    },
-                    width,
-                );
-                painter.draw_line(
-                    Point::new(r.right(), r.y),
-                    Point::new(r.right(), r.bottom()),
-                    if black {
-                        Color::BLACK
-                    } else {
-                        self.palette.frame_shadow
-                    },
-                    width,
-                );
-            }
-        } else {
-            // Windows / modern: single lined frame.
-            // When focused, use the focus color; otherwise use the frame color.
-            let color = if focused {
-                self.palette.focus
-            } else {
-                self.palette.frame
-            };
-            painter.stroke_round_rect(rect, self.radius(), color, width);
-        }
+    fn draw_frame(
+        &self,
+        painter: &mut dyn Painter,
+        rect: Rect,
+        kind: FrameKind,
+        focused: bool,
+    );
+
+    /// Draws a panel: the background of a content area.
+    fn draw_panel(&self, rasterizer: &mut dyn TextRasterizer, rect: Rect);
+
+    /// Draws a check box with an optional label to its right.
+    fn draw_checkbox(
+        &self,
+        rasterizer: &mut dyn TextRasterizer,
+        rect: Rect,
+        spec: &CheckboxSpec<'_>,
+    );
+
+    /// Draws a radio button with an optional label to its right.
+    fn draw_radio_button(
+        &self,
+        rasterizer: &mut dyn TextRasterizer,
+        rect: Rect,
+        spec: &RadioButtonSpec<'_>,
+    );
+
+    /// Draws a strip of tabs.
+    fn draw_tabs(
+        &self,
+        rasterizer: &mut dyn TextRasterizer,
+        tabs: &[TabSpec<'_>],
+        selected: usize,
+        hovered: Option<usize>,
+        font: &FontSpec,
+    );
+
+    /// The background colour of a popup (a combo box drop-down, a menu).
+    fn popup_surface(&self) -> Color {
+        self.palette().surface
     }
 
-    /// Popup background: white on Windows 95 theme, surface color otherwise.
-    pub fn popup_surface(&self) -> Color {
-        if self.radius == 0.0 {
-            Color::hex(0xffffff)
-        } else {
-            self.palette.surface
-        }
+    fn background(&self) -> Color {
+        self.palette().background
     }
 
-    pub fn surface_hover(&self) -> Color {
-        self.palette.surface_hover
+    fn surface(&self) -> Color {
+        self.palette().surface
     }
 
-    pub fn surface_pressed(&self) -> Color {
-        self.palette.surface_pressed
+    fn surface_hover(&self) -> Color {
+        self.palette().surface_hover
     }
 
-    pub fn border(&self) -> Color {
-        self.palette.border
+    fn surface_pressed(&self) -> Color {
+        self.palette().surface_pressed
     }
 
-    pub fn text(&self) -> Color {
-        self.palette.text
+    fn border(&self) -> Color {
+        self.palette().border
     }
 
-    pub fn text_muted(&self) -> Color {
-        self.palette.text_muted
+    fn text(&self) -> Color {
+        self.palette().text
     }
 
-    pub fn text_pressed(&self) -> Color {
-        self.palette.text_pressed
+    fn text_muted(&self) -> Color {
+        self.palette().text_muted
     }
 
-    pub fn accent(&self) -> Color {
-        self.palette.accent
+    fn text_pressed(&self) -> Color {
+        self.palette().text_pressed
     }
 
-    pub fn accent_hover(&self) -> Color {
-        self.palette.accent_hover
+    fn accent(&self) -> Color {
+        self.palette().accent
     }
 
-    pub fn accent_pressed(&self) -> Color {
-        self.palette.accent_pressed
+    fn accent_hover(&self) -> Color {
+        self.palette().accent_hover
     }
 
-    pub fn accent_text(&self) -> Color {
-        self.palette.accent_text
+    fn accent_pressed(&self) -> Color {
+        self.palette().accent_pressed
     }
 
-    pub fn focus(&self) -> Color {
-        self.palette.focus
+    fn accent_text(&self) -> Color {
+        self.palette().accent_text
     }
 
-    pub fn focus_ring(&self) -> Color {
+    fn focus(&self) -> Color {
+        self.palette().focus
+    }
+
+    fn focus_ring(&self) -> Color {
         self.focus()
     }
 
-    pub fn focus_color(&self) -> Color {
+    fn focus_color(&self) -> Color {
         self.focus()
     }
 
-    pub fn focused(&self) -> Color {
-        self.palette.focused
+    fn focused(&self) -> Color {
+        self.palette().focused
     }
 
-    pub fn font_size(&self) -> f32 {
+    fn font_size(&self) -> f32 {
         16.0
     }
 
-    pub fn radius(&self) -> f32 {
-        self.radius
-    }
-
-    pub fn spacing(&self) -> f32 {
+    fn spacing(&self) -> f32 {
         10.0
     }
 
-    pub fn padding(&self) -> f32 {
+    fn padding(&self) -> f32 {
         14.0
+    }
+}
+
+/// Draws a dotted (dashed) rectangle outline using short line segments.
+///
+/// This is used for focus indicators on Windows themes, where Windows 95
+/// (zero corner radius) intentionally does not get a dotted frame.
+pub(crate) fn draw_dotted_rect(
+    rasterizer: &mut dyn Painter,
+    rect: Rect,
+    color: Color,
+    width: f32,
+) {
+    let dash = 4.0;
+    let gap = 4.0;
+
+    // Top and bottom edges.
+    let mut x = rect.x;
+    while x < rect.right() {
+        let x1 = x;
+        let x2 = (x + dash).min(rect.right());
+        rasterizer.draw_line(Point::new(x1, rect.y), Point::new(x2, rect.y), color, width);
+        rasterizer.draw_line(
+            Point::new(x1, rect.bottom()),
+            Point::new(x2, rect.bottom()),
+            color,
+            width,
+        );
+        x += dash + gap;
+    }
+
+    // Left and right edges.
+    let mut y = rect.y;
+    while y < rect.bottom() {
+        let y1 = y;
+        let y2 = (y + dash).min(rect.bottom());
+        rasterizer.draw_line(Point::new(rect.x, y1), Point::new(rect.x, y2), color, width);
+        rasterizer.draw_line(
+            Point::new(rect.right(), y1),
+            Point::new(rect.right(), y2),
+            color,
+            width,
+        );
+        y += dash + gap;
     }
 }

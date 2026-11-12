@@ -243,14 +243,14 @@ impl Widget for ComboBox {
     }
 
     fn paint(&self, ctx: &mut PaintCtx) {
-        let theme = ctx.theme;
+        let theme = ctx.theme.clone();
         let bounds = ctx.bounds;
         let header = Self::header_rect(bounds);
         let is_focused = ctx.state.focused && ctx.state.window_active;
 
         ctx.rasterizer
             .fill_round_rect(header, theme.radius(), theme.surface());
-        theme.frame(&mut *ctx.rasterizer, header, FrameKind::Normal, is_focused);
+        theme.draw_frame(&mut *ctx.rasterizer, header, FrameKind::Normal, is_focused);
 
         let text = self
             .selected_text()

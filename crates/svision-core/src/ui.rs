@@ -35,7 +35,7 @@ pub(crate) struct UiInner {
     root: Option<WidgetId>,
     next_id: u64,
     size: Size,
-    theme: Theme,
+    theme: Rc<dyn Theme>,
     text_engine: Rc<dyn TextEngine>,
     dirty: bool,
     needs_layout: bool,
@@ -79,7 +79,7 @@ impl Ui {
                 root: None,
                 next_id: 1,
                 size: Size::ZERO,
-                theme: Theme::default(),
+                theme: crate::themes::default_theme(),
                 text_engine: Rc::new(ApproxTextEngine),
                 dirty: true,
                 needs_layout: true,
@@ -216,7 +216,7 @@ impl Ui {
         }
     }
 
-    pub fn theme(&self) -> Theme {
+    pub fn theme(&self) -> Rc<dyn Theme> {
         self.inner.borrow().theme.clone()
     }
 
@@ -232,7 +232,7 @@ impl Ui {
         }
     }
 
-    pub fn set_theme(&self, theme: Theme) {
+    pub fn set_theme(&self, theme: Rc<dyn Theme>) {
         let mut inner = self.inner.borrow_mut();
         inner.theme = theme;
         inner.needs_layout = true;
@@ -476,7 +476,7 @@ impl Ui {
             .unwrap_or_default()
     }
 
-    pub(crate) fn margin_node(&self, id: WidgetId, theme: &Theme) -> Insets {
+    pub(crate) fn margin_node(&self, id: WidgetId, theme: &dyn Theme) -> Insets {
         let inner = self.inner.borrow();
         inner
             .widgets
@@ -584,7 +584,7 @@ impl Ui {
                 let mut ctx = PaintCtx {
                     rasterizer: &mut *rasterizer,
                     ui: self,
-                    theme: &inner.theme,
+                    theme: inner.theme.clone(),
                     bounds: node.rect,
                     state: WidgetState {
                         interaction: node.interaction.state,

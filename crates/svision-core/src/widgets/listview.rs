@@ -354,7 +354,7 @@ impl Widget for ListView {
     }
 
     fn paint(&self, ctx: &mut PaintCtx) {
-        let theme = ctx.theme;
+        let theme = ctx.theme.clone();
         let bounds = ctx.bounds;
         self.sync_scrollbar();
 
@@ -362,7 +362,7 @@ impl Widget for ListView {
 
         ctx.rasterizer
             .fill_round_rect(bounds, theme.radius(), theme.surface());
-        theme.frame(&mut *ctx.rasterizer, bounds, FrameKind::Normal, is_focused);
+        theme.draw_frame(&mut *ctx.rasterizer, bounds, FrameKind::Normal, is_focused);
 
         let content = self.content_bounds(bounds);
         ctx.rasterizer.push_clip(content);
@@ -422,7 +422,7 @@ impl Widget for ListView {
             let mut scrollbar_ctx = PaintCtx {
                 rasterizer: &mut *ctx.rasterizer,
                 ui: ctx.ui,
-                theme: ctx.theme,
+                theme: ctx.theme.clone(),
                 bounds: scrollbar_bounds,
                 state: ctx.state,
             };

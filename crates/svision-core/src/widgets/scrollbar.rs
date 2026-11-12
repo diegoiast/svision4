@@ -349,7 +349,7 @@ impl Widget for ScrollBar {
     }
 
     fn paint(&self, ctx: &mut PaintCtx) {
-        let theme = ctx.theme;
+        let theme = ctx.theme.clone();
         let bounds = ctx.bounds;
 
         ctx.rasterizer

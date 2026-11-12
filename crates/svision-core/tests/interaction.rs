@@ -501,8 +501,10 @@ fn focused_button_fires_on_enter() {
 
 #[test]
 fn theme_focus_color_is_exposed() {
-    assert_ne!(Theme::light().focus(), Theme::light().surface());
-    assert_ne!(Theme::dark().focus(), Theme::dark().surface());
+    let light = Style::Windows11.theme(false);
+    let dark = Style::Windows11.theme(true);
+    assert_ne!(light.focus(), light.surface());
+    assert_ne!(dark.focus(), dark.surface());
 }
 
 #[test]
@@ -1270,4 +1272,87 @@ fn list_view_filter_matches_a_substring() {
         list.with(|list: &ListView| list.visible_items()),
         vec!["I Saw Her Standing There".to_string()]
     );
+}
+
+#[test]
+fn themes_expose_a_default_palette_per_light_dark_request() {
+    let light = Style::Windows11.palette(false);
+    let dark = Style::Windows11.palette(true);
+    assert_ne!(light, dark);
+    assert_eq!(light, Style::Windows11.theme(false).palette());
+    assert_eq!(dark, Style::Windows11.theme(true).palette());
+}
+
+#[test]
+fn windows95_is_a_single_theme() {
+    let theme = Style::Windows95.theme(false);
+    // Windows 95 has square corners and its own palette.
+    assert_eq!(theme.radius(), 0.0);
+    assert_ne!(theme.palette(), Style::Windows11.theme(false).palette());
+    assert_ne!(theme.palette(), Style::Windows11.theme(true).palette());
+}
+
+#[test]
+fn windows95_has_light_and_dark_variants() {
+    // Windows 95 shipped with a high-contrast black scheme as well.
+    assert_ne!(
+        Style::Windows95.palette(false),
+        Style::Windows95.palette(true)
+    );
+    assert_eq!(Style::Windows95.radius(), 0.0);
+}
+
+#[test]
+fn windows11_has_light_and_dark_variants() {
+    assert_ne!(
+        Style::Windows11.theme(false).palette(),
+        Style::Windows11.theme(true).palette()
+    );
+    assert_eq!(Style::Windows11.radius(), 5.0);
+}
+
+#[test]
+fn a_theme_can_be_built_from_a_palette() {
+    let theme = Windows11Theme::with_palette(Style::Windows11.palette(true));
+    assert_eq!(theme.palette(), Style::Windows11.palette(true));
+    assert_eq!(theme.radius(), Style::Windows11.radius());
+}
+
+#[test]
+fn with_palette_keeps_the_corner_radius() {
+    let theme = Windows95Theme::with_palette(Style::Windows11.palette(false));
+    assert_eq!(theme.palette(), Style::Windows11.palette(false));
+    assert_eq!(theme.radius(), Style::Windows95.radius());
+}
+
+#[test]
+fn disabled_checkbox_ignores_clicks() {
+    let ui = Ui::new();
+    ui.set_size(Size::new(320.0, 200.0));
+    let root = ui.set_root(Column::new().padding(10.0).spacing(8.0));
+    let toggled = Rc::new(Cell::new(0usize));
+    let toggled_cb = toggled.clone();
+    let checkbox = ui
+        .add_child(
+            &root,
+            Checkbox::new("Light theme").selected(true).on_click(move |_ctx| {
+                toggled_cb.set(toggled_cb.get() + 1);
+            }),
+        )
+        .cast::<Checkbox>()
+        .expect("checkbox");
+    ui.layout();
+
+    let bounds = checkbox.bounds();
+    click(&ui, bounds.center());
+    assert_eq!(toggled.get(), 1);
+    // The checkbox started checked, so the click cleared it.
+    assert!(!checkbox.with(|checkbox: &Checkbox| checkbox.is_checked()));
+
+    // A disabled checkbox ignores clicks entirely.
+    checkbox.set_enabled(false);
+    ui.layout();
+    click(&ui, bounds.center());
+    assert_eq!(toggled.get(), 1, "disabled checkbox must not fire");
+    assert!(!checkbox.with(|checkbox: &Checkbox| checkbox.is_checked()));
 }

@@ -1,5 +1,5 @@
 use crate::{
-    Event, FontSpec, Key, MouseButton, Point, Rect, Size, SizePolicy, SizePolicy2D, Ui,
+    Event, FontSpec, Key, MouseButton, Point, Rect, Size, SizePolicy, SizePolicy2D, TabSpec, Ui,
     impl_widget_any,
     widget::{EventCtx, MeasureCtx, PaintCtx, Widget},
 };
@@ -178,58 +178,29 @@ impl Widget for TabBar {
     }
 
     fn paint(&self, ctx: &mut PaintCtx) {
-        let theme = ctx.theme;
+        let theme = ctx.theme.clone();
         let font = self.font(theme.font_size());
-        let hovered = self.hovered;
 
-        ctx.rasterizer
-            .fill_round_rect(ctx.bounds, theme.radius(), theme.surface());
+        let tabs: Vec<TabSpec<'_>> = self
+            .tab_rects
+            .iter()
+            .enumerate()
+            .filter_map(|(index, rect)| {
+                let title = self.titles.get(index)?;
+                Some(TabSpec {
+                    title,
+                    size: self.measured.get(index).copied().unwrap_or(Size::ZERO),
+                    rect: *rect,
+                })
+            })
+            .collect();
 
-        for (index, rect) in self.tab_rects.iter().enumerate() {
-            let is_selected = index == self.selected;
-            let is_hovered = hovered == Some(index);
-            let background = if is_selected {
-                theme.accent()
-            } else if is_hovered {
-                theme.surface_hover()
-            } else {
-                theme.surface()
-            };
-            ctx.rasterizer
-                .fill_round_rect(*rect, theme.radius(), background);
-
-            if !is_selected {
-                // Separator between the tabs.
-                ctx.rasterizer.draw_line(
-                    Point::new(rect.right() - 0.5, rect.y + 6.0),
-                    Point::new(rect.right() - 0.5, rect.bottom() - 6.0),
-                    theme.border(),
-                    1.0,
-                );
-            }
-
-            let text_color = if is_selected {
-                theme.accent_text()
-            } else {
-                theme.text()
-            };
-            let size = self
-                .measured
-                .get(index)
-                .copied()
-                .unwrap_or(Size::ZERO);
-            let x = rect.x + (rect.width - size.width) * 0.5;
-            let y = rect.y + (rect.height - size.height) * 0.5;
-            ctx.rasterizer
-                .draw_text(&self.titles[index], Point::new(x, y), &font, text_color);
-        }
-
-        // Line separating the strip from the content below it.
-        ctx.rasterizer.draw_line(
-            Point::new(ctx.bounds.x, ctx.bounds.bottom() - 0.5),
-            Point::new(ctx.bounds.right(), ctx.bounds.bottom() - 0.5),
-            theme.border(),
-            1.0,
+        theme.draw_tabs(
+            ctx.rasterizer,
+            &tabs,
+            self.selected,
+            self.hovered,
+            &font,
         );
     }
 

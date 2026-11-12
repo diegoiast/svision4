@@ -209,9 +209,6 @@ fn build(ui: &Ui) {
     );
 
     let theme_ui = ui.clone();
-    let theme_card = card.clone();
-    let theme_ui_radio = theme_ui.clone();
-    let theme_card_radio = theme_card.clone();
     let layout_ui = ui.clone();
     ui.add_child(
         &buttons,
@@ -284,42 +281,58 @@ fn build(ui: &Ui) {
         });
     });
 
-    // Radio button group: Windows theme presets.
+    // Theme picker: a radio button per available style, plus a checkbox that
+    // picks the light or dark appearance.
+    let style = Rc::new(Cell::new(Style::Windows11));
+    let light = Rc::new(Cell::new(true));
+
+    let apply_theme = {
+        let theme_ui = theme_ui.clone();
+        let style = style.clone();
+        let light = light.clone();
+        move || {
+            let next = style.get().theme(!light.get());
+            theme_ui.set_theme(next);
+        }
+    };
+
+    // Checkbox: checked means the light appearance.
+    ui.add_child(
+        &root,
+        Checkbox::new("Light theme").selected(true).on_click({
+            let apply_theme = apply_theme.clone();
+            let light = light.clone();
+            move |_ctx| {
+                let next = !light.get();
+                light.set(next);
+                apply_theme();
+            }
+        }),
+    );
+
     let group = ui.add_child(
         &root,
-        RadioButtonGroup::new().on_change(move |id| {
-            let next = match id.as_str() {
-                "windows-light" => Theme::light(),
-                "windows-dark" => Theme::dark(),
-                "windows95-light" => Theme::windows95_light(),
-                "windows95-dark" => Theme::windows95(),
-                "windows-11" => Theme::windows11(),
-                "material" => Theme::dark(),
-                _ => Theme::light(),
-            };
-            let surface = next.palette().surface;
-            let theme_ui = theme_ui_radio.clone();
-            //let theme_card = theme_card_radio.clone();
-            theme_ui.set_theme(next);
-            /*            theme_card.edit(|card: &mut Column| {
-                            card.set_background(surface);
-                        });
-            */
+        RadioButtonGroup::new().on_change({
+            let apply_theme = apply_theme.clone();
+            let style = style.clone();
+            move |id| {
+                let next = match id.as_str() {
+                    "windows95" => Style::Windows95,
+                    _ => Style::Windows11,
+                };
+                style.set(next);
+                apply_theme();
+            }
         }),
     );
 
     ui.add_child(
         &group,
-        RadioButton::new("Windows light").id("windows-light"),
+        RadioButton::new("Windows 11")
+            .id("windows11")
+            .selected(true),
     );
-    ui.add_child(&group, RadioButton::new("Windows dark").id("windows-dark"));
-    ui.add_child(
-        &group,
-        RadioButton::new("Windows 95 light").id("windows95-light"),
-    );
-    ui.add_child(
-        &group,
-        RadioButton::new("Windows 95 dark").id("windows95-dark"),
-    );
-    ui.add_child(&group, RadioButton::new("Material").id("material"));
+    ui.add_child(&group, RadioButton::new("Windows 95").id("windows95"));
+
+    apply_theme();
 }

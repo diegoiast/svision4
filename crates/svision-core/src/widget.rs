@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::rc::Rc;
 
 use crate::{
     FontSpec, Insets, Rect, Size,
@@ -100,7 +101,7 @@ impl MeasureCtx {
         self.ui.measure_text(text, font)
     }
 
-    pub fn theme(&self) -> Theme {
+    pub fn theme(&self) -> Rc<dyn Theme> {
         self.ui.theme()
     }
 
@@ -133,7 +134,7 @@ impl ArrangeCtx {
         self.ui.arrange_node(child, bounds);
     }
 
-    pub fn theme(&self) -> Theme {
+    pub fn theme(&self) -> Rc<dyn Theme> {
         self.ui.theme()
     }
 
@@ -146,7 +147,7 @@ impl ArrangeCtx {
 pub struct PaintCtx<'a> {
     pub rasterizer: &'a mut dyn TextRasterizer,
     pub ui: &'a Ui,
-    pub theme: &'a Theme,
+    pub theme: Rc<dyn Theme>,
     pub bounds: Rect,
     pub state: WidgetState,
 }
@@ -213,7 +214,7 @@ pub trait Widget: Any {
         SizePolicy2D::default()
     }
 
-    fn margin(&self, _theme: &Theme) -> Insets {
+    fn margin(&self, _theme: &dyn Theme) -> Insets {
         Insets::ZERO
     }
 

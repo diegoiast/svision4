@@ -204,7 +204,7 @@ impl Widget for Input {
     }
 
     fn paint(&self, ctx: &mut PaintCtx) {
-        let theme = ctx.theme;
+        let theme = ctx.theme.clone();
         let enabled = ctx.state.enabled;
 
         let background = if enabled {
@@ -217,7 +217,7 @@ impl Widget for Input {
 
         ctx.rasterizer
             .fill_round_rect(ctx.bounds, theme.radius(), background);
-        theme.frame(
+        theme.draw_frame(
             &mut *ctx.rasterizer,
             ctx.bounds,
             FrameKind::Normal,

@@ -1,48 +1,9 @@
 use crate::{
-    Color, Event, FontSpec, Key, MouseButton, Painter, Ui, WidgetHandle, WidgetId,
-    button_state::ButtonState,
-    geometry::{Point, Rect, Size},
+    Event, FontSpec, Key, MouseButton, Rect, Ui, WidgetHandle, WidgetId,
+    geometry::Size,
+    theme::RadioButtonSpec,
     widget::{ArrangeCtx, EventCtx, MeasureCtx, PaintCtx, SizePolicy, SizePolicy2D, Widget},
 };
-
-/// Draws a dotted (dashed) rectangle outline using short line segments.
-///
-/// Used for focus indicators on Windows themes. Windows 95 (zero corner
-/// radius) intentionally does not get a dotted frame.
-fn draw_dotted_rect(rasterizer: &mut dyn Painter, rect: Rect, color: Color, width: f32) {
-    let dash = 4.0;
-    let gap = 4.0;
-
-    // Top and bottom edges.
-    let mut x = rect.x;
-    while x < rect.right() {
-        let x1 = x;
-        let x2 = (x + dash).min(rect.right());
-        rasterizer.draw_line(Point::new(x1, rect.y), Point::new(x2, rect.y), color, width);
-        rasterizer.draw_line(
-            Point::new(x1, rect.bottom()),
-            Point::new(x2, rect.bottom()),
-            color,
-            width,
-        );
-        x += dash + gap;
-    }
-
-    // Left and right edges.
-    let mut y = rect.y;
-    while y < rect.bottom() {
-        let y1 = y;
-        let y2 = (y + dash).min(rect.bottom());
-        rasterizer.draw_line(Point::new(rect.x, y1), Point::new(rect.x, y2), color, width);
-        rasterizer.draw_line(
-            Point::new(rect.right(), y1),
-            Point::new(rect.right(), y2),
-            color,
-            width,
-        );
-        y += dash + gap;
-    }
-}
 
 /// A single radio button.
 ///
@@ -123,66 +84,16 @@ impl Widget for RadioButton {
     }
 
     fn paint(&self, ctx: &mut PaintCtx) {
-        let theme = ctx.theme;
-        let b = ctx.bounds;
-        let state = ctx.state.interaction;
-        let gap = 8.0;
-
-        // Circle mark on the left.
-        let side = b.height.min(b.width).min(24.0);
-        let outer = Rect::new(b.x, b.y + (b.height - side) / 2.0, side, side);
-        let pad = side * 0.30;
-        let inner = Rect::new(
-            b.x + pad,
-            b.y + (b.height - side) / 2.0 + pad,
-            side - pad * 2.0,
-            side - pad * 2.0,
-        );
-
-        // Outer ring: accent when checked/hovered/pressed, border otherwise.
-        let outer_color = match state {
-            ButtonState::ClickedInside => theme.accent_pressed(),
-            ButtonState::Hovered => theme.accent_hover(),
-            _ => {
-                if self.checked {
-                    theme.accent()
-                } else {
-                    theme.border()
-                }
-            }
+        let theme = ctx.theme.clone();
+        let spec = RadioButtonSpec {
+            label: &self.label,
+            label_size: self.measured_text,
+            checked: self.checked,
+            enabled: ctx.state.enabled,
+            interaction: ctx.state.interaction,
+            focused: ctx.state.focused && ctx.state.window_active,
         };
-        ctx.rasterizer.fill_ellipse(outer, outer_color);
-
-        // Inner fill: accent when checked, surface/hover/pressed otherwise.
-        let inner_bg = if self.checked {
-            match state {
-                ButtonState::ClickedInside => theme.accent_pressed(),
-                ButtonState::Hovered => theme.accent_hover(),
-                _ => theme.accent(),
-            }
-        } else {
-            match state {
-                ButtonState::ClickedInside => theme.surface_pressed(),
-                ButtonState::Hovered => theme.surface_hover(),
-                _ => theme.surface(),
-            }
-        };
-        ctx.rasterizer.fill_ellipse(inner, inner_bg);
-
-        // Label text to the right of the circle.
-        if !self.label.is_empty() {
-            let font = FontSpec::new(theme.font_size());
-            let text_x = b.x + side + gap;
-            let text_y = b.y + (b.height - self.measured_text.height) / 2.0;
-            ctx.rasterizer
-                .draw_text(&self.label, Point::new(text_x, text_y), &font, theme.text());
-        }
-
-        // Dotted focus frame on Windows themes (non-zero radius).
-        // Windows 95 (radius == 0) does not get a dotted frame.
-        if ctx.state.focused && ctx.state.window_active && theme.radius() > 0.0 {
-            draw_dotted_rect(&mut *ctx.rasterizer, ctx.bounds, theme.focus(), 1.0);
-        }
+        theme.draw_radio_button(ctx.rasterizer, ctx.bounds, &spec);
     }
 
     fn event(&mut self, ctx: &mut EventCtx, event: &Event) -> bool {
